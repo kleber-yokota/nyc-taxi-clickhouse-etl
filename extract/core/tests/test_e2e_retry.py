@@ -6,16 +6,19 @@ from pathlib import Path
 
 import responses
 
+from extract.core.catalog import Catalog
 from extract.core.downloader import run
 
 
 def test_retry_skips_known_missing(download_dir: Path):
-    """Test that on second run, 404 URLs from known_missing.txt are skipped (not failed)."""
-    from extract.core.catalog import Catalog
+    """Test that on second run, 404 URLs from known_missing.txt are skipped.
 
+    First run records 404 URLs in known_missing.txt.
+    Second run skips those URLs instead of re-attempting.
+    """
     catalog = Catalog(types=["yellow"], from_year=2024, to_year=2024)
 
-    # First run: all 404 → all recorded as known missing
+    # First run: all 404 → recorded as known missing
     with responses.RequestsMock(assert_all_requests_are_fired=False) as rsps:
         for entry in catalog.generate():
             rsps.add(responses.GET, entry.url, body="", status=404)
@@ -30,7 +33,7 @@ def test_retry_skips_known_missing(download_dir: Path):
 
     assert result1["failed"] == 12
 
-    # Second run: same 404s, but now they're in known_missing.txt → skipped
+    # Second run: known_missing.txt entries are skipped, not failed
     with responses.RequestsMock(assert_all_requests_are_fired=False) as rsps:
         for entry in catalog.generate():
             rsps.add(responses.GET, entry.url, body="", status=404)

@@ -66,5 +66,5 @@ def TestErrorTypeVariety(data):
         return
 
 
-atheris.Setup(sys.argv, TestOneInput, TestStateSerialization, TestErrorTypeVariety)
+atheris.Setup(sys.argv, TestOneInput)
 atheris.Fuzz()

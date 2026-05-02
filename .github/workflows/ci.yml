@@ -16,7 +16,11 @@ jobs:
           python-version: "3.12"
           cache: true
       - run: uv sync --dev
-      - run: uv run pytest -v --ignore=extract/tests/test_fuzz.py
+      - run: uv run pytest -v \
+          --ignore=extract/tests/test_fuzz.py \
+          --ignore=extract/tests/test_e2e.py \
+          --ignore=extract/tests/test_e2e_errors.py \
+          --ignore=extract/tests/test_e2e_retry.py
 
   fuzz:
     runs-on: ubuntu-latest
@@ -49,4 +53,4 @@ jobs:
           python-version: "3.12"
           cache: true
       - run: uv sync --dev
-      - run: uv run pytest -v
+      - run: uv run pytest -v extract/tests/test_e2e.py extract/tests/test_e2e_errors.py extract/tests/test_e2e_retry.py

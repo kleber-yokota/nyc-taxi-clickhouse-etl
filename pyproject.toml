@@ -29,6 +29,10 @@ deadline = 2000
 testpaths = ["extract/tests"]
 addopts = ["--ignore=extract/tests/test_fuzz.py"]
 
+[tool.mutmut]
+paths_to_mutate = ["extract/core/"]
+test_command = "python -m pytest -q --no-header --ignore=extract/tests/test_fuzz.py extract/tests/"
+
 [dependency-groups]
 dev = [
     "atheris>=3.0",

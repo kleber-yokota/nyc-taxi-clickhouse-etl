@@ -916,6 +916,8 @@ python -m pytest <package>/tests/test_e2e.py \
 
 ### Mock boto3 correctly
 
+> **NOTE:** Code snippets are example patterns — adapt to your package structure.
+
 ```python
 # WRONG — mock doesn't return the configured object
 with patch("package.s3_uploader.boto3.client") as mock_boto:
@@ -938,6 +940,8 @@ with patch("package.s3_uploader.boto3.client") as mock_boto:
 | Config | YAML cassettes | `@responses.activate` decorator |
 | E2E with parquet | ❌ Don't use | ✅ Use |
 
+> **NOTE:** The code snippets above are **example patterns** showing how to use each library — not production code. Adapt them to your specific use case.
+
 ```python
 # WRONG with VCR and binary data
 # VCR serializes body.string as str in YAML, requests expects bytes
@@ -953,6 +957,8 @@ responses.add(
 ```
 
 ### MinIO via testcontainers
+
+> **NOTE:** This is an example pattern — adapt image name, credentials, and port to your setup.
 
 ```python
 @pytest.fixture(scope="module")
@@ -970,6 +976,8 @@ def minio_endpoint():
 > Use `scope="module"` — container starts once, not per test.
 
 ### Autouse fixture for mocking
+
+> **NOTE:** This is an example pattern — adapt the fixture name, mock library, and URL map to your needs.
 
 ```python
 @pytest.fixture(autouse=True)

@@ -7,7 +7,6 @@ from .state import (
     AVAILABLE_YEARS,
     CatalogEntry,
     DATA_TYPES,
-    FHVHV_MISSING_MONTHS,
     build_url,
 )
 
@@ -26,14 +25,15 @@ class Catalog:
         self.to_year = to_year if to_year else max(AVAILABLE_YEARS)
 
     def generate(self) -> list[CatalogEntry]:
+        """Generate all catalog entries for the configured filters.
+
+        Returns:
+            List of CatalogEntry objects, ordered by type then chronologically.
+        """
         entries: list[CatalogEntry] = []
         for data_type in self.types:
             for year in range(self.from_year, self.to_year + 1):
-                months = list(AVAILABLE_MONTHS)
-                if data_type == "fhvhv" and year in FHVHV_MISSING_MONTHS:
-                    missing = FHVHV_MISSING_MONTHS[year]
-                    months = [m for m in months if m not in missing]
-                for month in months:
+                for month in AVAILABLE_MONTHS:
                     entries.append(CatalogEntry(data_type, year, month))
         return entries
 

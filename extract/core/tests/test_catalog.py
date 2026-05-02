@@ -5,7 +5,7 @@ from __future__ import annotations
 import pytest
 
 from extract.core.catalog import Catalog
-from extract.core.state import CatalogEntry, DATA_TYPES, FHVHV_MISSING_MONTHS
+from extract.core.state import CatalogEntry, DATA_TYPES
 
 
 class TestCatalogEntry:
@@ -65,7 +65,7 @@ class TestCatalog:
         for i in range(1, len(entries)):
             prev = entries[i - 1]
             curr = entries[i]
-            if prev.data_type == curr.data_type:
+            if curr.data_type == prev.data_type:
                 assert (curr.year, curr.month) > (prev.year, prev.month)
             else:
                 assert curr.data_type > prev.data_type
@@ -89,19 +89,8 @@ class TestCatalog:
         assert all(e.data_type == "yellow" for e in entries)
 
     def test_year_range_ordering(self):
+        """When from_year > to_year, range produces empty list."""
         catalog = Catalog(from_year=2024, to_year=2022, types=["yellow"])
-        entries = catalog.generate()
-        assert len(entries) == 0
-
-    def test_excludes_fhvhv_missing_months(self):
-        catalog = Catalog(types=["fhvhv"], from_year=2026, to_year=2026)
-        entries = catalog.generate()
-        for e in entries:
-            missing_months = FHVHV_MISSING_MONTHS.get(2026, [])
-            assert e.month not in missing_months
-
-    def test_excludes_fhvhv_before_2016(self):
-        catalog = Catalog(types=["fhvhv"], from_year=2010, to_year=2015)
         entries = catalog.generate()
         assert len(entries) == 0
 
@@ -129,3 +118,21 @@ class TestCatalog:
         entries = catalog.generate()
         months = [e.month for e in entries]
         assert months == list(range(1, 13))
+
+    def test_fhvhv_all_months_in_range(self):
+        """fhvhv should generate all 12 months for a given year (no hardcoded filter)."""
+        catalog = Catalog(types=["fhvhv"], from_year=2016, to_year=2016)
+        entries = catalog.generate()
+        assert len(entries) == 12
+
+    def test_fhvhv_all_months_2026(self):
+        """fhvhv should generate all 12 months for 2026 (no hardcoded filter)."""
+        catalog = Catalog(types=["fhvhv"], from_year=2026, to_year=2026)
+        entries = catalog.generate()
+        assert len(entries) == 12
+
+    def test_fhvhv_before_2016(self):
+        """fhvhv before 2016 should also generate all months (dynamically discoverable)."""
+        catalog = Catalog(types=["fhvhv"], from_year=2010, to_year=2010)
+        entries = catalog.generate()
+        assert len(entries) == 12

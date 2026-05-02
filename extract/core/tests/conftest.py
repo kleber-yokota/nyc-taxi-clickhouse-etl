@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import json
-import tempfile
 from pathlib import Path
 
 import pytest
@@ -55,3 +54,9 @@ def errors_log(state_dir: Path) -> Path:
     log = state_dir / "errors" / "download_errors.log"
     log.parent.mkdir(parents=True, exist_ok=True)
     return log
+
+
+@pytest.fixture
+def download_dir(tmp_path: Path) -> Path:
+    """Create a temporary data directory for e2e tests."""
+    return tmp_path / "data"

@@ -37,9 +37,10 @@ class InterruptibleDownload:
 
     def cleanup(self) -> None:
         """Remove any active temporary download file."""
-        if self._tmp_path and self._tmp_path.exists():
-            logger.info("Cleaning up interrupted download: %s", self._tmp_path)
-            self._tmp_path.unlink()
+        if self._tmp_path:
+            if self._tmp_path.exists():
+                logger.info("Cleaning up interrupted download: %s", self._tmp_path)
+                self._tmp_path.unlink()
             self._tmp_path = None
 
     def _cleanup_tmp(self) -> None:

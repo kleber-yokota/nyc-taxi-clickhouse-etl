@@ -14,23 +14,11 @@ ERRORS_DIR = "data/errors"
 ERRORS_LOG = "data/errors/download_errors.log"
 
 DOWNLOAD_TIMEOUT = 300
+KNOWN_MISSING_FILE = "data/known_missing.txt"
 CDN_BASE = "https://d37ci6vzurychx.cloudfront.net/trip-data"
 DATA_TYPES = ["fhv", "fhvhv", "green", "yellow"]
 AVAILABLE_YEARS = range(2009, datetime.now().year + 1)
 AVAILABLE_MONTHS = range(1, 13)
-
-# fhvhv availability: not available before 2016, and missing in some 2026 months
-# Based on TLC page: 2026-02 and 2026-03 have no fhvhv
-FHVHV_MISSING_MONTHS: dict[int, list[int]] = {
-    2009: list(range(1, 13)),
-    2010: list(range(1, 13)),
-    2011: list(range(1, 13)),
-    2012: list(range(1, 13)),
-    2013: list(range(1, 13)),
-    2014: list(range(1, 13)),
-    2015: list(range(1, 13)),
-    2026: [2, 3],
-}
 
 
 def build_url(data_type: str, year: int, month: int) -> str:

@@ -45,15 +45,25 @@ extract/
 │   ├── state_manager.py       # State class (checksums, error logging)
 │   ├── interrupt.py           # InterruptibleDownload (signal handling, cleanup)
 │   ├── catalog.py             # Catalog + CatalogEntry (URL generation, ordering)
-│   ├── downloader.py          # run() — main download orchestration
-│   └── tests/
-│       ├── __init__.py
-│       ├── conftest.py
-│       ├── test_catalog.py
-│       ├── test_downloader.py
-│       ├── test_properties.py
-│       ├── test_fuzz.py
-│       └── test_e2e.py
+│   └── downloader.py          # run() — main download orchestration
+├── tests/
+│   ├── __init__.py
+│   ├── conftest.py            # Shared fixtures + VCR config
+│   ├── cassettes/             # VCR cassettes for e2e tests
+│   │   ├── success_200.yaml   # 3 x 200 OK
+│   │   ├── partial_200_404.yaml # mixed 200/404
+│   │   ├── all_404.yaml       # 12 x 404 Not Found
+│   │   ├── all_500.yaml       # 12 x 500 Internal Server Error
+│   │   └── checksum_mismatch.yaml # 12 x 200 OK (different content)
+│   ├── test_catalog.py
+│   ├── test_downloader.py
+│   ├── test_e2e.py            # E2E tests — download flow
+│   ├── test_e2e_errors.py     # E2E tests — error handling
+│   ├── test_e2e_retry.py
+│   ├── test_properties.py
+│   ├── test_fuzz.py
+│   ├── test_interrupt.py
+│   └── test_known_missing.py
 ├── OVERVIEW.md
 └── DETAILS.md
 ```
@@ -99,5 +109,5 @@ START → CHECK_STATE → DOWNLOAD → VERIFY_CHECKSUM → SAVE_STATE
 | File | Why read it |
 |---|---|
 | `DETAILS.md` | Function signatures, edge cases, design decisions |
-| `tests/test_e2e.py` | Full download scenarios with mocks |
+| `tests/test_e2e.py` | Full download scenarios with VCR and responses mocks |
 | `tests/test_properties.py` | Property-based tests for URL format and ordering |

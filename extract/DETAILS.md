@@ -162,6 +162,8 @@ class CatalogEntry:
 | File | Why read it |
 |---|---|
 | `OVERVIEW.md` | Module flow and structure |
-| `tests/test_e2e.py` | Full scenarios with mocked HTTP |
+| `tests/test_e2e.py` | Download flow scenarios with VCR cassettes |
+| `tests/test_e2e_errors.py` | Error handling scenarios with VCR cassettes |
+| `tests/test_e2e_retry.py` | Retry/skip behavior with VCR |
 | `tests/test_properties.py` | Property tests for ordering and URL format |
 | `tests/test_fuzz.py` | Fuzz tests for state serialization |

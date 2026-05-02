@@ -1,0 +1,43 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "nyc-taxi-clickhouse-etl"
+version = "0.1.0"
+requires-python = ">=3.11"
+dependencies = [
+    "requests>=2.31",
+]
+
+[project.optional-dependencies]
+test = [
+    "pytest>=7.0",
+    "hypothesis>=6.0",
+    "mutmut>=3.0",
+    "atheris>=3.0",
+    "coverage>=7.0",
+    "responses>=0.23",
+    "vcrpy>=5.0",
+]
+
+[tool.hypothesis]
+max_examples = 30
+deadline = 2000
+
+[tool.pytest.ini_options]
+testpaths = ["extract/tests", "extract/core/tests"]
+addopts = ["--ignore=extract/core/tests/test_fuzz.py"]
+
+[dependency-groups]
+dev = [
+    "atheris>=3.0",
+    "coverage>=7.0",
+    "hypothesis>=6.0",
+    "mutmut>=3.0",
+    "pytest>=7.0",
+    "responses>=0.23",
+    "testcontainers>=4.5",
+    "vcrpy>=5.0",
+    "pytest-recording>=0.13",
+]

@@ -38,7 +38,7 @@ jobs:
           python-version: "3.12"
           cache: true
       - run: uv sync --dev
-      - run: rm -rf mutants/ && uv run mutmut run --all-targets --no-progress
+      - run: rm -rf mutants/ && uv run mutmut run
 
   e2e:
     runs-on: ubuntu-latest

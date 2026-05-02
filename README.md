@@ -1,43 +1,43 @@
 # NYC Taxi Trip ETL
 
-Pipeline ETL para ingestão dos dados de viagens de táxi de Nova York (NYC Trip Data), armazenamento em object storage (Garage) e análise OLAP via ClickHouse.
+ETL pipeline for ingesting NYC Trip Data, storing in object storage (Garage), and loading into ClickHouse for OLAP analysis.
 
-## Visão geral
+## Overview
 
 ```
-NYC Trip Data → Extract → Transform → Load → Garage (Object Storage) → ClickHouse (OLAP) → Análise
+NYC Trip Data → Extract → Transform → Load → Garage (Object Storage) → ClickHouse (OLAP) → Analytics
 ```
 
-## Fluxo
+## Flow
 
-1. **Extract** — Download dos datasets de viagem de táxi de NYC (yellow, green, fhv, etc.)
-2. **Transform** — Limpeza, padronização e transformação dos dados brutos
-3. **Load (Object Storage)** — Persistência dos dados transformados no Garage (object storage S3-compatible)
-4. **Load (OLAP)** — Carga dos dados no ClickHouse para análise e consultas analíticas
+1. **Extract** — Download NYC taxi trip datasets (yellow, green, fhv, etc.)
+2. **Transform** — Clean, normalize, and transform raw data
+3. **Load (Object Storage)** — Persist transformed data into Garage (S3-compatible object storage)
+4. **Load (OLAP)** — Load data into ClickHouse for analytical queries and dashboards
 
-## Arquitetura
+## Architecture
 
-- **Garage** — Object storage S3-compatible para armazenamento durável e de baixo custo dos dados brutos e transformados
-- **ClickHouse** — Banco de dados OLAP para análise de dados de viagens, agregações e dashboards
+- **Garage** — S3-compatible object storage for durable, low-cost storage of raw and transformed data
+- **ClickHouse** — OLAP database for trip data analysis, aggregations, and dashboards
 
-## Dados
+## Data
 
-Dataset de origem: [NYC Taxi & Limousine Commission (TLC) Trip Record Data](https://www.nyc.gov/site/tlc/about/tlc-trip-record-data.page)
+Source dataset: [NYC Taxi & Limousine Commission (TLC) Trip Record Data](https://www.nyc.gov/site/tlc/about/tlc-trip-record-data.page)
 
-## Execução
+## Running
 
 ```bash
 uv sync
 uv run python main.py
 ```
 
-## Estrutura
+## Project Structure
 
 ```
 ├── main.py              # Entry point
-├── config.py            # Configurações (Garage, ClickHouse)
-├── extract/             # Download e ingestão dos dados NYC Trip
-├── transform/           # Limpeza e transformação
-├── load/                # Carga no Garage e ClickHouse
-└── tests/               # Testes
+├── config.py            # Configuration (Garage, ClickHouse)
+├── extract/             # Download and ingestion of NYC Trip data
+├── transform/           # Data cleaning and transformation
+├── load/                # Loading into Garage and ClickHouse
+└── tests/               # Tests
 ```

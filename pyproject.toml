@@ -27,7 +27,7 @@ deadline = 2000
 
 [tool.pytest.ini_options]
 testpaths = ["extract/tests"]
-addopts = ["--ignore=extract/tests/test_fuzz.py"]
+addopts = ["-k", "not e2e and not fuzz"]
 
 [tool.mutmut]
 paths_to_mutate = ["extract/core/"]

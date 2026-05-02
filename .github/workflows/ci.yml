@@ -15,7 +15,7 @@ jobs:
         with:
           python-version: "3.12"
           cache: true
-      - run: uv sync --group test
+      - run: uv sync --dev
       - run: uv run pytest -v --ignore=extract/tests/test_fuzz.py
 
   fuzz:
@@ -26,7 +26,7 @@ jobs:
         with:
           python-version: "3.12"
           cache: true
-      - run: uv sync --group test
+      - run: uv sync --dev
       - run: uv run python extract/tests/test_fuzz.py -runs=10000
 
   mutation:
@@ -37,7 +37,7 @@ jobs:
         with:
           python-version: "3.12"
           cache: true
-      - run: uv sync --group test
+      - run: uv sync --dev
       - run: rm -rf mutants/ && uv run mutmut run --all-targets --no-progress
 
   e2e:
@@ -48,5 +48,5 @@ jobs:
         with:
           python-version: "3.12"
           cache: true
-      - run: uv sync --group test
+      - run: uv sync --dev
       - run: uv run pytest -v

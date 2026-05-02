@@ -19,13 +19,18 @@ class Catalog:
         types: list[str] | None = None,
         from_year: int | None = None,
         to_year: int | None = None,
+        max_entries: int | None = None,
     ) -> None:
         self.types = sorted(types) if types else DATA_TYPES
         self.from_year = from_year if from_year else min(AVAILABLE_YEARS)
         self.to_year = to_year if to_year else max(AVAILABLE_YEARS)
+        self.max_entries = max_entries
 
     def generate(self) -> list[CatalogEntry]:
         """Generate all catalog entries for the configured filters.
+
+        Args:
+            max_entries: Optional limit on number of entries returned.
 
         Returns:
             List of CatalogEntry objects, ordered by type then chronologically.
@@ -35,6 +40,8 @@ class Catalog:
             for year in range(self.from_year, self.to_year + 1):
                 for month in AVAILABLE_MONTHS:
                     entries.append(CatalogEntry(data_type, year, month))
+                    if self.max_entries and len(entries) >= self.max_entries:
+                        return entries
         return entries
 
     def build_url(self, data_type: str, year: int, month: int) -> str:

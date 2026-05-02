@@ -1,0 +1,156 @@
+interactions:
+- request:
+    body: null
+    headers:
+      Accept:
+      - '*/*'
+      Accept-Encoding:
+      - gzip, deflate
+      Connection:
+      - keep-alive
+      User-Agent:
+      - python-requests/2.33.1
+    method: GET
+    uri: https://d37ci6vzurychx.cloudfront.net/trip-data/yellow_tripdata_2024-01.parquet
+  response:
+    body:
+      string: !!binary |
+        UEFSMRUEFRAVIkwVBBUAEgAAKLUv/SAIQQAAAgAAAAEAAAAVABWwphMViN8OLBWAgIABFRAVBhUG
+        HAAAACi1L/2gmGkCABw6DA4AYM9hVBBoZrTppKd+11k3PRUoFA4ABh7xRg==
+    headers:
+      Accept-Ranges:
+      - bytes
+      Age:
+      - '3523'
+      Connection:
+      - keep-alive
+      Content-Length:
+      - '49961641'
+      Content-Type:
+      - binary/octet-stream
+      Date:
+      - Sat, 02 May 2026 22:04:49 GMT
+      ETag:
+      - '"d6ebae95a45f284994e283e2df97c06f-3"'
+      Last-Modified:
+      - Thu, 21 Mar 2024 15:35:44 GMT
+      Server:
+      - AmazonS3
+      Via:
+      - 1.1 5b0c19b4f635956c312aa0b36a61b514.cloudfront.net (CloudFront)
+      X-Amz-Cf-Id:
+      - _F-JQlDoN1_jtiKd9uY4jxLmECKOzOeukZpY7PkPpPfHU1wRChnYNg==
+      X-Amz-Cf-Pop:
+      - GRU3-P5
+      X-Cache:
+      - Hit from cloudfront
+      x-amz-server-side-encryption:
+      - AES256
+    status:
+      code: 200
+      message: OK
+- request:
+    body: null
+    headers:
+      Accept:
+      - '*/*'
+      Accept-Encoding:
+      - gzip, deflate
+      Connection:
+      - keep-alive
+      User-Agent:
+      - python-requests/2.33.1
+    method: GET
+    uri: https://d37ci6vzurychx.cloudfront.net/trip-data/yellow_tripdata_2024-02.parquet
+  response:
+    body:
+      string: !!binary |
+        UEFSMRUEFRAVIkwVBBUAEgAAKLUv/SAIQQAAAgAAAAEAAAAVABWaqxMV+NIOLBWAgIABFRAVBhUG
+        HAAAACi1L/2gzWoCANwrDF4enr5dVBBoZrTppKd+9zjnWSWMAwdAkoZ2Yw==
+    headers:
+      Accept-Ranges:
+      - bytes
+      Age:
+      - '8992'
+      Connection:
+      - keep-alive
+      Content-Length:
+      - '50349284'
+      Content-Type:
+      - binary/octet-stream
+      Date:
+      - Sat, 02 May 2026 20:33:44 GMT
+      ETag:
+      - '"7337741e6032c0652369749781534e79-3"'
+      Last-Modified:
+      - Fri, 19 Apr 2024 18:22:42 GMT
+      Server:
+      - AmazonS3
+      Vary:
+      - Accept-Encoding
+      Via:
+      - 1.1 c2a2ff8561c9f61f39ab4cb8637c47dc.cloudfront.net (CloudFront)
+      X-Amz-Cf-Id:
+      - P5C9NrlElb0FzIcXlYA3lDZWsR5XQ4sWQ139XlD5ZtHApsj0ubR4EA==
+      X-Amz-Cf-Pop:
+      - GRU3-P5
+      X-Cache:
+      - Hit from cloudfront
+      x-amz-server-side-encryption:
+      - AES256
+    status:
+      code: 200
+      message: OK
+- request:
+    body: null
+    headers:
+      Accept:
+      - '*/*'
+      Accept-Encoding:
+      - gzip, deflate
+      Connection:
+      - keep-alive
+      User-Agent:
+      - python-requests/2.33.1
+    method: GET
+    uri: https://d37ci6vzurychx.cloudfront.net/trip-data/yellow_tripdata_2024-03.parquet
+  response:
+    body:
+      string: !!binary |
+        UEFSMRUEFRAVIkwVBBUAEgAAKLUv/SAIQQAAAQAAAAIAAAAVABXqnhMVqIcPLBWAgIABFRAVBhUG
+        HAAAACi1L/2gtWcCAOSQDB4Jnr1gVRBgZ0WNAVS1jRMZ2/ZPXuhZoGHI2A==
+    headers:
+      Accept-Ranges:
+      - bytes
+      Age:
+      - '8992'
+      Connection:
+      - keep-alive
+      Content-Length:
+      - '60078280'
+      Content-Type:
+      - binary/octet-stream
+      Date:
+      - Sat, 02 May 2026 20:33:49 GMT
+      ETag:
+      - '"7a8994a37b02c8200aac7bcf9c3a2c69-4"'
+      Last-Modified:
+      - Wed, 22 May 2024 19:27:43 GMT
+      Server:
+      - AmazonS3
+      Vary:
+      - Accept-Encoding
+      Via:
+      - 1.1 09da932b77903d127ff727b02b3fa220.cloudfront.net (CloudFront)
+      X-Amz-Cf-Id:
+      - rK-9BTFMOzTMx9oHB3zstjOmwiNhE4g8qeyajrWe8YZsujex7Z1Img==
+      X-Amz-Cf-Pop:
+      - GRU3-P5
+      X-Cache:
+      - Hit from cloudfront
+      x-amz-server-side-encryption:
+      - AES256
+    status:
+      code: 200
+      message: OK
+version: 1

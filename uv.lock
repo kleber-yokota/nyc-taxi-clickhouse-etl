@@ -422,9 +422,7 @@ test = [
     { name = "hypothesis" },
     { name = "mutmut" },
     { name = "pytest" },
-    { name = "pytest-recording" },
     { name = "responses" },
-    { name = "testcontainers" },
     { name = "vcrpy" },
 ]
 
@@ -448,10 +446,8 @@ requires-dist = [
     { name = "hypothesis", marker = "extra == 'test'", specifier = ">=6.0" },
     { name = "mutmut", marker = "extra == 'test'", specifier = ">=3.0" },
     { name = "pytest", marker = "extra == 'test'", specifier = ">=7.0" },
-    { name = "pytest-recording", marker = "extra == 'test'", specifier = ">=0.13" },
     { name = "requests", specifier = ">=2.31" },
     { name = "responses", marker = "extra == 'test'", specifier = ">=0.23" },
-    { name = "testcontainers", marker = "extra == 'test'", specifier = ">=4.5" },
     { name = "vcrpy", marker = "extra == 'test'", specifier = ">=5.0" },
 ]
 provides-extras = ["test"]

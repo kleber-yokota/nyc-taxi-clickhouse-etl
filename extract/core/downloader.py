@@ -22,6 +22,7 @@ def run(
     from_year: int | None = None,
     to_year: int | None = None,
     mode: str = "incremental",
+    max_entries: int | None = None,
 ) -> dict[str, int]:
     """Download TLC parquet files according to the specified filters.
 
@@ -31,12 +32,13 @@ def run(
         from_year: Starting year (inclusive). Defaults to 2009.
         to_year: Ending year (inclusive). Defaults to current year.
         mode: "incremental" (skip downloaded) or "full" (reset state).
+        max_entries: Optional limit on entries for testing.
 
     Returns:
         Dict with keys: downloaded, skipped, failed, total.
     """
     data_dir = _resolve_data_dir(data_dir)
-    catalog = Catalog(types=types, from_year=from_year, to_year=to_year)
+    catalog = Catalog(types=types, from_year=from_year, to_year=to_year, max_entries=max_entries)
     state = State(data_dir / ".download_state.json")
     _apply_mode(state, mode)
     known_missing = KnownMissing(data_dir / "known_missing.txt")

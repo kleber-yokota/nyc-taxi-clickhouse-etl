@@ -18,9 +18,7 @@ test = [
     "atheris>=3.0",
     "coverage>=7.0",
     "responses>=0.23",
-    "testcontainers>=4.5",
     "vcrpy>=5.0",
-    "pytest-recording>=0.13",
 ]
 
 [tool.hypothesis]

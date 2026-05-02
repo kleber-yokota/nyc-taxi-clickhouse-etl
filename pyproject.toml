@@ -27,7 +27,7 @@ deadline = 2000
 
 [tool.pytest.ini_options]
 testpaths = ["extract/tests"]
-addopts = ["--ignore=extract/core/tests/test_fuzz.py"]
+addopts = ["--ignore=extract/tests/test_fuzz.py"]
 
 [dependency-groups]
 dev = [

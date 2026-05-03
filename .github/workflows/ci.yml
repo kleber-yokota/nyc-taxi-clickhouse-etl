@@ -40,7 +40,7 @@ jobs:
       - run: uv sync --dev
       - run: |
           rm -rf mutants/
-          uv pip install -e .
+          mkdir -p mutants/extract/tests/cassettes
           uv run mutmut run
 
   e2e:

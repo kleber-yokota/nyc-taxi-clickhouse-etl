@@ -31,6 +31,7 @@ jobs:
 
   mutation:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v4
@@ -41,6 +42,13 @@ jobs:
       - run: |
           rm -rf mutants/
           mkdir -p mutants/extract/tests/cassettes
+          cp extract/tests/test_catalog.py mutants/extract/tests/
+          cp extract/tests/test_downloader.py mutants/extract/tests/
+          cp extract/tests/test_interrupt.py mutants/extract/tests/
+          cp extract/tests/test_known_missing.py mutants/extract/tests/
+          cp extract/tests/test_properties.py mutants/extract/tests/
+          cp extract/tests/conftest.py mutants/extract/tests/
+          cp extract/tests/cassettes/*.yaml mutants/extract/tests/cassettes/
           uv run mutmut run
 
   e2e:

@@ -27,7 +27,11 @@ deadline = 2000
 
 [tool.pytest.ini_options]
 testpaths = ["extract/tests"]
-addopts = ["--ignore=extract/core/tests/test_fuzz.py"]
+addopts = []
+
+[tool.mutmut]
+paths_to_mutate = ["extract/core/"]
+test_command = "python -m pytest -q --no-header --ignore=extract/tests/test_fuzz.py extract/tests/"
 
 [dependency-groups]
 dev = [

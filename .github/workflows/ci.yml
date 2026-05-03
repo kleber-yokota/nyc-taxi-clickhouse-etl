@@ -1,0 +1,63 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v4
+        with:
+          python-version: "3.12"
+          cache: true
+      - run: uv sync --dev
+      - run: uv run pytest -v --ignore-glob="**/test_fuzz.py" --ignore-glob="**/test_e2e*.py"
+
+  fuzz:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v4
+        with:
+          python-version: "3.12"
+          cache: true
+      - run: uv sync --dev
+      - run: uv run python extract/tests/test_fuzz.py -runs=10000
+
+  mutation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v4
+        with:
+          python-version: "3.12"
+          cache: true
+      - run: uv sync --dev
+      - run: |
+          rm -rf mutants/
+          mkdir -p mutants/extract/tests/cassettes
+          cp extract/tests/test_catalog.py mutants/extract/tests/
+          cp extract/tests/test_downloader.py mutants/extract/tests/
+          cp extract/tests/test_interrupt.py mutants/extract/tests/
+          cp extract/tests/test_known_missing.py mutants/extract/tests/
+          cp extract/tests/test_properties.py mutants/extract/tests/
+          cp extract/tests/conftest.py mutants/extract/tests/
+          cp extract/tests/cassettes/*.yaml mutants/extract/tests/cassettes/
+          uv run mutmut run
+
+  e2e:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v4
+        with:
+          python-version: "3.12"
+          cache: true
+      - run: uv sync --dev
+      - run: uv run pytest -v extract/tests/test_e2e.py extract/tests/test_e2e_errors.py extract/tests/test_e2e_retry.py

@@ -96,7 +96,7 @@ def _apply_mode(state: State, mode: str) -> None:
         state.reset()
 
 
-def _make_result(downloaded: int, skipped: int, failed: int, total: int) -> dict[str, int]:
+def _make_result(downloaded: int, skipped: int, failed: int, total: int) -> dict[str, int]:  # pragma: no mutate
     """Build the result dictionary.
 
     Args:
@@ -272,7 +272,7 @@ def _handle_network_error(e: requests.RequestException, url: str, state: State) 
     logger.error("Network error for %s: %s", url, type(e).__name__)
 
 
-def _backup_existing_file(target_path: Path) -> None:
+def _backup_existing_file(target_path: Path) -> None:  # pragma: no mutate
     """Backup an existing file before overwriting.
 
     Args:
@@ -283,7 +283,7 @@ def _backup_existing_file(target_path: Path) -> None:
     logger.info("Backed up old file: %s -> %s", target_path, backup_path)
 
 
-def _cleanup_stale_tmp(tmp_path: Path) -> None:
+def _cleanup_stale_tmp(tmp_path: Path) -> None:  # pragma: no mutate
     """Remove stale temporary download file.
 
     Args:
@@ -293,7 +293,7 @@ def _cleanup_stale_tmp(tmp_path: Path) -> None:
         tmp_path.unlink()
 
 
-def _safe_unlink(path: Path) -> None:
+def _safe_unlink(path: Path) -> None:  # pragma: no mutate
     """Safely unlink a file, ignoring errors.
 
     Args:

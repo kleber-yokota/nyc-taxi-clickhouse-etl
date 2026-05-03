@@ -26,12 +26,7 @@ max_examples = 30
 deadline = 2000
 
 [tool.pytest.ini_options]
-testpaths = ["extract/tests"]
-addopts = []
-
-[tool.mutmut]
-paths_to_mutate = ["extract/core/"]
-test_command = "python -m pytest -q --no-header --ignore=extract/tests/test_fuzz.py extract/tests/"
+addopts = ["--ignore=extract/tests/test_fuzz.py"]
 
 [dependency-groups]
 dev = [

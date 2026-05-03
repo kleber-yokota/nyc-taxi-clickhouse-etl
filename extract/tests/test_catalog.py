@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+
 import pytest
 
 from extract.core.catalog import Catalog
-from extract.core.state import CatalogEntry, DATA_TYPES
+from extract.core.state import AVAILABLE_YEARS, CatalogEntry, DATA_TYPES, compute_sha256
 
 
 class TestCatalogEntry:
@@ -45,6 +47,33 @@ class TestCatalogEntry:
 
 
 class TestCatalog:
+    def test_init_types_sorted(self):
+        catalog = Catalog(types=["yellow", "green"])
+        assert catalog.types == ["green", "yellow"]
+
+    def test_init_types_single(self):
+        catalog = Catalog(types=["fhv"])
+        assert catalog.types == ["fhv"]
+
+    def test_init_types_none(self):
+        catalog = Catalog()
+        assert catalog.types == DATA_TYPES
+
+    def test_init_from_year_default(self):
+        catalog = Catalog()
+        assert catalog.from_year == min(AVAILABLE_YEARS)
+
+    def test_init_to_year_default(self):
+        catalog = Catalog()
+        assert catalog.to_year == max(AVAILABLE_YEARS)
+
+    def test_init_with_all_params(self):
+        catalog = Catalog(types=["green"], from_year=2020, to_year=2022, max_entries=100)
+        assert catalog.types == ["green"]
+        assert catalog.from_year == 2020
+        assert catalog.to_year == 2022
+        assert catalog.max_entries == 100
+
     def test_defaults(self):
         catalog = Catalog()
         entries = catalog.generate()
@@ -136,3 +165,42 @@ class TestCatalog:
         catalog = Catalog(types=["fhvhv"], from_year=2010, to_year=2010)
         entries = catalog.generate()
         assert len(entries) == 12
+
+    def test_max_entries_limits_result(self, tmp_path: Path):
+        catalog = Catalog(types=["yellow"], from_year=2024, to_year=2024, max_entries=5)
+        entries = catalog.generate()
+        assert len(entries) == 5
+
+    def test_max_entries_zero_returns_all(self):
+        catalog = Catalog(types=["yellow"], from_year=2024, to_year=2024, max_entries=0)
+        entries = catalog.generate()
+        assert len(entries) == 12
+
+    def test_max_entries_exact(self):
+        catalog = Catalog(types=["yellow"], from_year=2024, to_year=2024, max_entries=12)
+        entries = catalog.generate()
+        assert len(entries) == 12
+
+
+class TestComputeSha256:
+    def test_compute_sha256_known_content(self, tmp_path: Path):
+        import hashlib
+        test_file = tmp_path / "test.bin"
+        test_file.write_bytes(b"hello world")
+        expected = hashlib.sha256(b"hello world").hexdigest()
+        assert compute_sha256(test_file) == expected
+
+    def test_compute_sha256_empty_file(self, tmp_path: Path):
+        import hashlib
+        test_file = tmp_path / "empty.bin"
+        test_file.write_bytes(b"")
+        expected = hashlib.sha256(b"").hexdigest()
+        assert compute_sha256(test_file) == expected
+
+    def test_compute_sha256_large_file(self, tmp_path: Path):
+        import hashlib
+        test_file = tmp_path / "large.bin"
+        content = b"x" * 100000
+        test_file.write_bytes(content)
+        expected = hashlib.sha256(content).hexdigest()
+        assert compute_sha256(test_file) == expected

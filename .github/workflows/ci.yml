@@ -16,7 +16,7 @@ jobs:
           python-version: "3.12"
           cache: true
       - run: uv sync --dev
-      - run: uv run pytest -v -k "not e2e and not fuzz"
+      - run: uv run pytest -v extract/tests/test_catalog.py extract/tests/test_downloader.py extract/tests/test_interrupt.py extract/tests/test_known_missing.py extract/tests/test_properties.py
 
   fuzz:
     runs-on: ubuntu-latest
@@ -49,4 +49,4 @@ jobs:
           python-version: "3.12"
           cache: true
       - run: uv sync --dev
-      - run: uv run pytest -v -k "e2e"
+      - run: uv run pytest -v extract/tests/test_e2e.py extract/tests/test_e2e_errors.py extract/tests/test_e2e_retry.py

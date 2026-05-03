@@ -29,6 +29,7 @@ env/
 .coverage
 htmlcov/
 .mutmut-cache/
+mutants/
 
 # Jupyter
 .ipynb_checkpoints
@@ -42,5 +43,3 @@ Thumbs.db
 !README.md
 */AGENTS.md
 */REVIEW_EXCEPTION.md
-
-mutants

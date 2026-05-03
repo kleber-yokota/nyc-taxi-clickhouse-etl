@@ -7,6 +7,7 @@ name = "nyc-taxi-clickhouse-etl"
 version = "0.1.0"
 requires-python = ">=3.11"
 dependencies = [
+    "astroid>=4.1.2",
     "requests>=2.31",
 ]
 
@@ -24,6 +25,17 @@ test = [
 [tool.hypothesis]
 max_examples = 30
 deadline = 2000
+
+[tool.setuptools.packages.find]
+exclude = ["mutants*"]
+
+[tool.mutmut]
+paths_to_mutate = ["extract"]
+do_not_mutate = ["*/tests/*", "*/conftest.py", "*/test_*.py"]
+runner = "python -m pytest"
+test_dir = "tests"
+exclude_dirs = ["__pycache__", ".venv", "mutants"]
+debug = "false"
 
 [dependency-groups]
 dev = [

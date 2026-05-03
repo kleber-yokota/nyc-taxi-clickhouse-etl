@@ -25,9 +25,6 @@ test = [
 max_examples = 30
 deadline = 2000
 
-[tool.pytest.ini_options]
-addopts = ["--ignore=extract/tests/test_fuzz.py"]
-
 [dependency-groups]
 dev = [
     "atheris>=3.0",

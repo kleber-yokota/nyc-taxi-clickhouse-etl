@@ -34,6 +34,13 @@ echo "Discovered modules: ${MODULES[*]}"
 echo ""
 
 FAILED_MODULES=()
+ORIGINAL_PYPROJECT=""
+
+cleanup_pyproject() {
+    if [ -n "$ORIGINAL_PYPROJECT" ]; then
+        echo "$ORIGINAL_PYPROJECT" > pyproject.toml
+    fi
+}
 
 for module in "${MODULES[@]}"; do
     echo "=============================="
@@ -44,7 +51,7 @@ for module in "${MODULES[@]}"; do
     rm -rf mutants/
 
     # Discover test files for this module
-    TEST_DIR="${module}tests/"
+    TEST_DIR="${module}/tests/"
     if [ ! -d "$TEST_DIR" ]; then
         echo "  WARNING: No tests/ directory in ${module}, skipping"
         continue
@@ -64,21 +71,70 @@ for module in "${MODULES[@]}"; do
         continue
     fi
 
-    echo "  Test files: ${TEST_FILES[*]}"
+   echo "  Test files: ${TEST_FILES[*]}"
 
-    # Build pytest command
-    TEST_CMD="python -m pytest ${TEST_FILES[*]} -q"
+    # Filter test files: only unit tests (not fuzz, e2e, properties, helpers, mutant_killing)
+    UNIT_TESTS=()
+    for tf in "${TEST_FILES[@]}"; do
+        basename_tf=$(basename "$tf")
+        case "$basename_tf" in
+            test_fuzz.py|test_e2e*.py|test_properties.py|test_helpers.py|test_mutant_killing.py)
+                continue
+                ;;
+            *)
+                UNIT_TESTS+=("$tf")
+                ;;
+        esac
+    done
 
-    # Run mutmut
-    echo "  Running mutmut..."
-    if ! mutmut run --paths-to-mutate="${module}" --runner="${TEST_CMD}" 2>&1; then
-        echo "  ERROR: mutmut run failed for ${module}"
-        FAILED_MODULES+=("$module")
+    if [ ${#UNIT_TESTS[@]} -eq 0 ]; then
+        echo "  WARNING: No unit test files found, skipping"
         continue
     fi
 
+    echo "  Unit tests: ${UNIT_TESTS[*]}"
+    TEST_CMD="python -m pytest ${UNIT_TESTS[*]} -q"
+
+    # Save original pyproject.toml and create temp config for this module
+    ORIGINAL_PYPROJECT=$(cat pyproject.toml)
+
+    # Create temporary mutmut config
+    cat > pyproject.toml <<PYEOF
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "nyc-taxi-clickhouse-etl"
+version = "0.1.0"
+requires-python = ">=3.11"
+
+[tool.mutmut]
+paths_to_mutate = ["${module}"]
+do_not_mutate = ["*/tests/*", "*/conftest.py", "*/test_*.py", "*/__init__.py"]
+runner = "${TEST_CMD}"
+exclude_dirs = ["__pycache__", ".venv", "mutants"]
+PYEOF
+
+    # Run mutmut (capture output, only show on failure)
+    echo "  Running mutmut..."
+    MUTMUT_OUTPUT=$(mktemp)
+    if ! mutmut run >"$MUTMUT_OUTPUT" 2>&1; then
+        echo "  ERROR: mutmut run failed for ${module}"
+        cat "$MUTMUT_OUTPUT"
+        rm -f "$MUTMUT_OUTPUT"
+        cleanup_pyproject
+        FAILED_MODULES+=("$module")
+        continue
+    fi
+    echo "  Done (output suppressed, see GitHub Actions log for details)"
+    rm -f "$MUTMUT_OUTPUT"
+
     # Export CI stats
     mutmut export-cicd-stats
+
+    # Restore original pyproject.toml
+    cleanup_pyproject
 
     # Calculate and check score
     SCORE_OUTPUT=$(python3 -c "

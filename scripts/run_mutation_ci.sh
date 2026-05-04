@@ -139,13 +139,13 @@ PYEOF
     # Calculate and check score
     SCORE_OUTPUT=$(python3 -c "
 import json, sys
-with open('mutmut-cicd-stats.json') as f:
-    d = json.load(f)['result_counts']
-killed = d['killed']
-total = d['killed'] + d['success'] + d['timeout'] + d['skipped']
-score = killed / total * 100 if total else 0
-print(f'{score:.1f}')
-print(f'  Killed: {killed}/{total}')
+with open('mutants/mutmut-cicd-stats.json') as f:
+    d = json.load(f)
+    killed = d['killed']
+    total = d['killed'] + d['survived'] + d['timeout'] + d['skipped']
+    score = killed / total * 100 if total else 0
+    print(f'{score:.1f}')
+    print(f'  Killed: {killed}/{total}')
 ")
 
     SCORE=$(echo "$SCORE_OUTPUT" | head -1)

@@ -12,6 +12,11 @@ from .state import compute_sha256
 logger = logging.getLogger(__name__)
 
 
+def _handle_signal(signum: int, _frame: Any) -> None:
+    """Handle interrupt signals by logging and deferring cleanup."""
+    logger.info("Interrupt signal received (signal %d)", signum)
+
+
 class InterruptibleDownload:
     """Handles atomic downloads with interrupt and signal cleanup."""
 
@@ -23,17 +28,8 @@ class InterruptibleDownload:
         """
         self.data_dir = data_dir
         self._tmp_path: Path | None = None
-        self._setup_handlers()
-
-    def _setup_handlers(self) -> None:
-        """Register SIGINT and SIGTERM handlers for cleanup."""
-        signal.signal(signal.SIGINT, self._handle_signal)
-        signal.signal(signal.SIGTERM, self._handle_signal)
-
-    @staticmethod
-    def _handle_signal(signum: int, _frame: Any) -> None:
-        """Handle interrupt signals by logging and deferring cleanup."""
-        logger.info("Interrupt signal received (signal %d)", signum)
+        signal.signal(signal.SIGINT, _handle_signal)
+        signal.signal(signal.SIGTERM, _handle_signal)
 
     def cleanup(self) -> None:
         """Remove any active temporary download file."""
@@ -42,10 +38,6 @@ class InterruptibleDownload:
                 logger.info("Cleaning up interrupted download: %s", self._tmp_path)
                 self._tmp_path.unlink()
             self._tmp_path = None
-
-    def _cleanup_tmp(self) -> None:
-        """Public alias for cleanup to distinguish from signal handler."""
-        self.cleanup()
 
     def __enter__(self) -> "InterruptibleDownload":
         """Enter context manager."""

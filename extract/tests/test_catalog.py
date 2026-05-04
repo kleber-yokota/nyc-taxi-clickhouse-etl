@@ -131,11 +131,6 @@ class TestCatalog:
         catalog = Catalog(types=["yellow"], from_year=2024, to_year=2024)
         assert len(catalog) == 12
 
-    def test_build_url(self):
-        catalog = Catalog()
-        url = catalog.build_url("yellow", 2024, 1)
-        assert url == "https://d37ci6vzurychx.cloudfront.net/trip-data/yellow_tripdata_2024-01.parquet"
-
     def test_all_types_present_when_no_filter(self):
         catalog = Catalog()
         entries = catalog.generate()

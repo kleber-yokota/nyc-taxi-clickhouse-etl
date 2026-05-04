@@ -49,7 +49,6 @@ def run(
         return _make_result(0, 0, 0, 0)
 
     interruptible = InterruptibleDownload(data_dir)
-    interruptible._setup_handlers()
 
     downloaded = 0
     skipped = 0
@@ -65,8 +64,6 @@ def run(
     except KeyboardInterrupt:
         interruptible.cleanup()
         logger.info("Download interrupted by user.")
-    finally:
-        interruptible._cleanup_tmp()
 
     result = _make_result(downloaded, skipped, failed, total)
     logger.info("Download complete: %s", result)

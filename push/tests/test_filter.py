@@ -30,6 +30,10 @@ class TestMatchesPattern:
     def test_no_match_path(self):
         assert _matches_pattern("green.parquet", "green/file.parquet", "yellow*") is False
 
+    def test_or_not_and_mutation(self):
+        """Kills or→and mutation: filename matches but path doesn't."""
+        assert _matches_pattern("file.parquet", "subdir/file.parquet", "file.parquet") is True
+
 
 class TestMatchesAny:
     """Tests for _matches_any — kill exclusion pattern mutations."""

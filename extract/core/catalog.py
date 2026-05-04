@@ -7,7 +7,6 @@ from .state import (
     AVAILABLE_YEARS,
     CatalogEntry,
     DATA_TYPES,
-    build_url,
 )
 
 
@@ -29,9 +28,6 @@ class Catalog:
     def generate(self) -> list[CatalogEntry]:
         """Generate all catalog entries for the configured filters.
 
-        Args:
-            max_entries: Optional limit on number of entries returned.
-
         Returns:
             List of CatalogEntry objects, ordered by type then chronologically.
         """
@@ -43,9 +39,6 @@ class Catalog:
                     if self.max_entries and len(entries) >= self.max_entries:
                         return entries
         return entries
-
-    def build_url(self, data_type: str, year: int, month: int) -> str:
-        return build_url(data_type, year, month)
 
     def count(self) -> int:
         return len(self.generate())

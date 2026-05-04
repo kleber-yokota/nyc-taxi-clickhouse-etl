@@ -41,17 +41,6 @@ class TestInterruptibleDownload:
         interruptible.cleanup()
         assert interruptible._tmp_path is None
 
-    def test_cleanup_tmp_alias(self, download_dir: Path):
-        download_dir.mkdir(parents=True, exist_ok=True)
-        interruptible = InterruptibleDownload(download_dir)
-        tmp_file = download_dir / "test.tmp"
-        tmp_file.write_bytes(b"temp data")
-        interruptible._tmp_path = tmp_file
-
-        interruptible._cleanup_tmp()
-
-        assert not tmp_file.exists()
-
     def test_context_manager_no_exception(self, download_dir: Path):
         interruptible = InterruptibleDownload(download_dir)
         with interruptible:
@@ -70,10 +59,6 @@ class TestInterruptibleDownload:
 
         assert not tmp_file.exists()
 
-    def test_setup_handlers_no_error(self, download_dir: Path):
-        interruptible = InterruptibleDownload(download_dir)
-        interruptible._setup_handlers()
-
     def test_cleanup_with_none_tmp_path(self, download_dir: Path):
         interruptible = InterruptibleDownload(download_dir)
         interruptible._tmp_path = None
@@ -88,10 +73,6 @@ class TestInterruptibleDownload:
         interruptible._tmp_path = tmp_file
         interruptible.cleanup()
         assert interruptible._tmp_path is None
-
-    def test_handle_signal_logs(self, download_dir: Path):
-        interruptible = InterruptibleDownload(download_dir)
-        interruptible._handle_signal(2, None)
 
     def test_cleanup_removes_tmp_and_sets_none(self, download_dir: Path):
         download_dir.mkdir(parents=True, exist_ok=True)

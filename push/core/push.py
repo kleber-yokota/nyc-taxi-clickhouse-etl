@@ -96,6 +96,9 @@ def _upload_one(
     _do_upload(local_path, s3_key, client)
     state.record_push(str(local_path), s3_key, checksum)
     logger.info("Uploaded: %s -> s3://%s/%s", rel_path, client.bucket, s3_key)
+    if config.delete_after_push:
+        local_path.unlink()
+        logger.info("Deleted local file after push: %s", rel_path)
     return "uploaded"
 
 

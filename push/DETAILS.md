@@ -119,10 +119,12 @@ class UploadConfig:
     include: set[str] | None = None
     exclude: set[str] | None = None
     overwrite: bool = False
+    delete_after_push: bool = False
 ```
 
 Frozen dataclass bundling upload parameters to satisfy the ≤3 arguments rule.
 The `collect_files()` function automatically excludes `.push_state.json` from uploads.
+`delete_after_push=True` deletes local files after successful S3 upload.
 
 ---
 

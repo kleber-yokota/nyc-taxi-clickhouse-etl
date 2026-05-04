@@ -27,11 +27,13 @@ class UploadConfig:
         include: Set of glob patterns to include (e.g. {"*.parquet"}).
         exclude: Set of glob patterns to exclude (e.g. {".push_state.json"}).
         overwrite: Whether to re-upload files already recorded in state.
+        delete_after_push: Whether to delete local files after successful upload.
     """
 
     include: set[str] | None = None
     exclude: set[str] | None = None
     overwrite: bool = False
+    delete_after_push: bool = False
 
 
 @dataclass

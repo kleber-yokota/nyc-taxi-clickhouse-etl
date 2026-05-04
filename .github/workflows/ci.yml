@@ -51,6 +51,32 @@ jobs:
           cp extract/tests/cassettes/*.yaml mutants/extract/tests/cassettes/
           uv run mutmut run
 
+  mutation-push:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v4
+        with:
+          python-version: "3.12"
+          cache: true
+      - run: uv sync --dev
+      - run: |
+          rm -rf mutants/
+          uv run mutmut run --paths-to-mutate=push/core/
+          uv run mutmut export-cicd-stats
+          python3 -c "
+import json, sys
+with open('mutmut-cicd-stats.json') as f:
+    d = json.load(f)['result_counts']
+total = d['killed'] + d['success'] + d['timeout'] + d['skipped']
+score = d['killed'] / total * 100 if total else 0
+print(f'Mutation score: {score:.1f}%')
+if score < 85:
+    print(f'FAIL: Mutation score {score:.1f}% is below 85% threshold')
+    sys.exit(1)
+"
+
   e2e:
     runs-on: ubuntu-latest
     steps:

@@ -22,7 +22,7 @@ class TestPushFresh:
         client = FakeS3Client(bucket="b", prefix="data")
         state = PushState(sample_files / ".push_state.json")
 
-        result =        result = upload(sample_files, client, state)
+        result = upload(sample_files, client, state)
 
         assert result.uploaded == 3
         assert result.skipped == 0

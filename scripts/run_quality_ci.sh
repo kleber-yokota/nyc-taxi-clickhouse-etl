@@ -39,7 +39,7 @@ for module in "${MODULES[@]}"; do
     echo "Module: ${module}"
     echo "=============================="
 
-    CORE_DIR="${module}core/"
+    CORE_DIR="${module}/core/"
     if [ ! -d "$CORE_DIR" ]; then
         echo "  WARNING: No core/ directory in ${module}, skipping"
         continue
@@ -47,7 +47,7 @@ for module in "${MODULES[@]}"; do
 
     # 1. Coverage (≥ 85%)
     echo "  Running coverage..."
-    if ! uv run python -m coverage run --include="${module}core/*.py" -m pytest "${module}tests/" -q 2>&1; then
+    if ! uv run python -m coverage run --include="${module}/core/*.py" -m pytest "${module}/tests/" -q 2>&1; then
         echo "  ERROR: pytest failed for ${module}"
         FAILED_MODULES+=("$module")
         continue

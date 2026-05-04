@@ -10,6 +10,7 @@ dependencies = [
     "astroid>=4.1.2",
     "boto3>=1.43.2",
     "minio>=7.2.20",
+    "python-dotenv>=1.2.2",
     "requests>=2.31",
 ]
 

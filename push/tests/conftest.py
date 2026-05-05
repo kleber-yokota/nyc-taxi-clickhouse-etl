@@ -6,13 +6,17 @@ import boto3
 from botocore.config import Config
 from hashlib import sha256
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import patch, MagicMock
 
 import pytest
 import testcontainers.minio as mc
 
 from push.core.client import S3Client
 from push.core.state import PushState
+
+
+# Deterministic checksum for fake parquet content (cached to avoid recomputation)
+_FAKE_CHECKSUMS: dict[str, str] = {}
 
 
 @pytest.fixture(scope="module")
@@ -109,3 +113,58 @@ def sample_files_with_state(push_dir: Path, fake_parquet_content: bytes, push_st
     state.save()
 
     return push_dir
+
+
+def pytest_sessionstart(session: pytest.Session) -> None:
+    """Speed up push tests by caching checksums.
+
+    - Caches compute_sha256 results (reads file once, hashes in-memory)
+    - Only patches push_module.compute_sha256 (where upload() imports it).
+    - test_checksum.py imports compute_sha256 directly from checksum_module,
+      so it is unaffected and still tests the real function.
+
+    boto3.Session mock is applied in pytest_collection_modifyitems after
+    e2e tests are identified (session.items is empty at sessionstart).
+    """
+    from push.core import push as push_module
+
+    # Cache compute_sha256
+    def cached_sha256(file_path: Path) -> str:
+        """Compute SHA-256 from in-memory content, cache for repeated calls."""
+        content = file_path.read_bytes()
+        content_key = content.hex()
+        if content_key not in _FAKE_CHECKSUMS:
+            _FAKE_CHECKSUMS[content_key] = sha256(content).hexdigest()
+        return _FAKE_CHECKSUMS[content_key]
+
+    push_module.compute_sha256 = cached_sha256
+
+
+def pytest_collection_modifyitems(session: pytest.Session, config: pytest.Config, items: list[pytest.Item]) -> None:
+    """Mock boto3.session.Session after collection to avoid 2s startup per test.
+
+    Skips the mock when e2e tests are present (they need real boto3 to connect
+    to MinIO). At this point session.items is populated so e2e detection is
+    reliable.
+
+    Mutations in client.py are still tested — get_s3_client is still called,
+    only the expensive Session() initialization is skipped.
+    """
+    from unittest.mock import MagicMock
+
+    # Check if any e2e tests are in this session
+    e2e_items = [item for item in items if "test_e2e" in item.nodeid]
+    if e2e_items:
+        return  # e2e tests need real boto3
+
+    # Mock boto3.session.Session — avoids 2s startup per test
+    mock_session = MagicMock()
+    mock_session.client.return_value = MagicMock()
+    import boto3.session
+
+    boto3.session.Session = lambda *a, **k: mock_session
+
+
+def pytest_sessionfinish(session: pytest.Session, exitstatus: int) -> None:
+    """No-op: Python process exits after session, no cleanup needed."""
+    pass

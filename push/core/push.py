@@ -56,8 +56,6 @@ def upload(
                 uploaded += 1
             elif status == "skipped":
                 skipped += 1
-            else:
-                failed += 1
         except Exception as e:
             logger.error("Unexpected error uploading %s: %s", local_path, e)
             failed += 1
@@ -83,7 +81,7 @@ def _upload_one(
         config: Upload configuration.
 
     Returns:
-        "uploaded", "skipped", or "failed".
+        "uploaded" or "skipped".
     """
     rel_path = str(local_path.relative_to(data_dir))
     checksum = compute_sha256(local_path)

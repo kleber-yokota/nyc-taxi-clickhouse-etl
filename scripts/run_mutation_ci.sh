@@ -125,7 +125,7 @@ PYEOF
 
     echo "  Running mutmut (parallel)..."
     MUTMUT_OUTPUT=$(mktemp)
-    if ! mutmut run --max-children 8 --no-cleanup >"$MUTMUT_OUTPUT" 2>&1; then
+    if ! mutmut run --max-children 8 >"$MUTMUT_OUTPUT" 2>&1; then
         echo "  ERROR: mutmut run failed for ${module}"
         cat "$MUTMUT_OUTPUT"
         rm -f "$MUTMUT_OUTPUT"

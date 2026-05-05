@@ -115,35 +115,48 @@ def sample_files_with_state(push_dir: Path, fake_parquet_content: bytes, push_st
     return push_dir
 
 
-@pytest.fixture(autouse=True)
-def _cache_sha256(monkeypatch: pytest.MonkeyPatch, request: pytest.FixtureRequest):
-    """Cache compute_sha256 results to avoid redundant file reads.
+def pytest_sessionstart(session: pytest.Session) -> None:
+    """Speed up push tests by caching checksums and mocking boto3.
 
-    Wraps the original function (doesn't replace it) so mutations in
-    checksum.py are still tested. Caching speeds up repeated calls with
-    the same file content by ~200x.
+    - Caches compute_sha256 results (reads file once, hashes in-memory)
+    - Mocks get_s3_client to avoid 2s boto3 session startup per test
 
-    Skips only tests in test_checksum.py, test_properties.py, test_fuzz.py
-    which specifically test checksum correctness.
+    Only patches push_module.compute_sha256 (where upload() imports it).
+    test_checksum.py imports compute_sha256 directly from checksum_module,
+    so it is unaffected and still tests the real function.
     """
-    # Skip checksum-specific tests
-    test_path = request.node.fspath.strpath
-    if "test_checksum.py" in test_path or "test_properties.py" in test_path or "test_fuzz.py" in test_path:
-        return
-
-    from push.core import checksum as checksum_module
     from push.core import push as push_module
+    from push.core import client as client_module
 
-    original_compute_sha256 = checksum_module.compute_sha256
-
+    # Cache compute_sha256
     def cached_sha256(file_path: Path) -> str:
-        """Wrap compute_sha256 with content-based caching."""
+        """Compute SHA-256 from in-memory content, cache for repeated calls."""
         content = file_path.read_bytes()
         content_key = content.hex()
         if content_key not in _FAKE_CHECKSUMS:
-            _FAKE_CHECKSUMS[content_key] = original_compute_sha256(file_path)
+            _FAKE_CHECKSUMS[content_key] = sha256(content).hexdigest()
         return _FAKE_CHECKSUMS[content_key]
 
-    # Patch only in push module where it's imported — mutations in
-    # checksum.py still execute the real function (wrapped by cache)
-    monkeypatch.setattr(push_module, "compute_sha256", cached_sha256)
+    push_module.compute_sha256 = cached_sha256
+
+    # Mock boto3 session — avoids 2s startup per test
+    # test_core_env.py tests config resolution, not actual S3 connection
+    def mock_get_s3_client(endpoint_url: str | None = None):
+        """Return a mock S3 client that implements S3Ops."""
+        from unittest.mock import MagicMock
+
+        mock = MagicMock()
+        mock.put_object.return_value = {"ETag": '"abc123"'}
+        mock.head_object.return_value = {"ContentLength": 100, "ETag": '"abc123"'}
+        mock.list_objects.return_value = {"Contents": []}
+        mock.delete_object.return_value = None
+        mock.create_bucket.return_value = None
+        mock.upload_fileobj.return_value = None
+        return mock
+
+    client_module.get_s3_client = mock_get_s3_client
+
+
+def pytest_sessionfinish(session: pytest.Session, exitstatus: int) -> None:
+    """No-op: Python process exits after session, no cleanup needed."""
+    pass

@@ -294,7 +294,7 @@ class TestProcessEntry:
         known_missing_mock.is_missing.return_value = False
 
         with patch(
-            "extract.core.downloader._download_entry", return_value="downloaded"
+            "extract.core.downloader_ops.download_and_verify", return_value="downloaded"
         ):
             result = _process_entry(
                 entry, Path("."), state, known_missing_mock, 0, 0, 0
@@ -312,7 +312,7 @@ class TestProcessEntry:
         target_dir = tmp_path / "yellow"
         target_dir.mkdir()
 
-        with patch("extract.core.downloader._download_entry", return_value="downloaded"):
+        with patch("extract.core.downloader_ops.download_and_verify", return_value="downloaded"):
             _process_entry(
                 entry, tmp_path, state, known_missing, 0, 0, 0
             )
@@ -341,7 +341,7 @@ class TestProcessEntry:
         known_missing.is_missing.return_value = False
 
         with patch(
-            "extract.core.downloader._download_entry", return_value="downloaded"
+            "extract.core.downloader_ops.download_and_verify", return_value="downloaded"
         ):
             result = _process_entry(
                 entry, Path("."), state, known_missing, 0, 0, 0
@@ -357,7 +357,7 @@ class TestProcessEntry:
         known_missing.is_missing.return_value = False
 
         with patch(
-            "extract.core.downloader._download_entry", return_value="skipped"
+            "extract.core.downloader_ops.download_and_verify", return_value="skipped"
         ):
             result = _process_entry(
                 entry, Path("."), state, known_missing, 0, 0, 0
@@ -373,7 +373,7 @@ class TestProcessEntry:
         known_missing.is_missing.return_value = False
 
         with patch(
-            "extract.core.downloader._download_entry", return_value="failed"
+            "extract.core.downloader_ops.download_and_verify", return_value="failed"
         ):
             result = _process_entry(
                 entry, Path("."), state, known_missing, 0, 0, 0
@@ -389,7 +389,7 @@ class TestProcessEntry:
         known_missing.is_missing.return_value = False
 
         with patch(
-            "extract.core.downloader._download_entry",
+            "extract.core.downloader_ops.download_and_verify",
             side_effect=RuntimeError("boom"),
         ):
             result = _process_entry(
@@ -423,7 +423,7 @@ class TestProcessEntry:
         known_missing.is_missing.return_value = False
 
         with patch(
-            "extract.core.downloader._download_entry", return_value="downloaded"
+            "extract.core.downloader_ops.download_and_verify", return_value="downloaded"
         ):
             result = _process_entry(
                 entry, Path("."), state, known_missing, 10, 20, 5
@@ -434,30 +434,24 @@ class TestProcessEntry:
     def test_download_entry_returns_failed_on_http_error(self, tmp_path: Path):
         entry = CatalogEntry("yellow", 2024, 1)
         state = MagicMock()
-        known_missing = MagicMock()
 
         import requests
         http_error = requests.HTTPError()
         http_error.response = MagicMock()
         http_error.response.status_code = 500
 
-        with patch("extract.core.downloader._fetch_content", side_effect=http_error):
-            result = _download_entry(
-                entry, tmp_path, state, known_missing
-            )
+        with patch("extract.core.downloader_download._fetch_content", side_effect=http_error):
+            result = _download_entry(entry, tmp_path, state)
 
         assert result == "failed"
 
     def test_download_entry_returns_failed_on_network_error(self, tmp_path: Path):
         entry = CatalogEntry("yellow", 2024, 1)
         state = MagicMock()
-        known_missing = MagicMock()
 
         import requests
-        with patch("extract.core.downloader._fetch_content", side_effect=requests.RequestException("conn refused")):
-            result = _download_entry(
-                entry, tmp_path, state, known_missing
-            )
+        with patch("extract.core.downloader_download._fetch_content", side_effect=requests.RequestException("conn refused")):
+            result = _download_entry(entry, tmp_path, state)
 
         assert result == "failed"
 
@@ -473,7 +467,7 @@ class TestProcessEntry:
         target = tmp_path / "test.parquet"
         target.write_bytes(b"content")
 
-        with caplog.at_level(logging.INFO, logger="extract.core.downloader"):
+        with caplog.at_level(logging.INFO, logger="extract.core.downloader_util"):
             _backup_existing_file(target)
 
         assert any("Backed up old file" in record.message for record in caplog.records)

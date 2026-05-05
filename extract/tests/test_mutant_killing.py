@@ -13,7 +13,7 @@ import responses
 
 from extract.core.downloader import (
     _apply_mode,
-    _download_entry,
+    download_and_verify,
     _fetch_content,
     _handle_http_error,
     _handle_network_error,
@@ -88,7 +88,7 @@ class TestProcessEntryIsDownloaded:
         state.is_downloaded.return_value = True
 
         with patch(
-            "extract.core.downloader._download_entry",
+            "extract.core.downloader_ops.download_and_verify",
             return_value="downloaded",
         ):
             downloaded, skipped, failed = _process_entry(
@@ -115,7 +115,7 @@ class TestProcessEntryExceptionHandler:
             raise ValueError("unexpected failure")
 
         with patch(
-            "extract.core.downloader._download_entry",
+            "extract.core.downloader_ops.download_and_verify",
             side_effect=raise_value_error,
         ):
             downloaded, skipped, failed = _process_entry(
@@ -133,7 +133,7 @@ class TestProcessEntryExceptionHandler:
 
 
 class TestDownloadEntryChecksumMatch:
-    def test_download_entry_skips_when_checksum_matches(self, tmp_path: Path):
+    def testdownload_and_verify_skips_when_checksum_matches(self, tmp_path: Path):
         entry = CatalogEntry("yellow", 2024, 1)
         state = MagicMock()
         known_missing = MagicMock()
@@ -150,19 +150,19 @@ class TestDownloadEntryChecksumMatch:
             tmp_file.write_bytes(content)
 
         with patch(
-            "extract.core.downloader._fetch_content",
+            "extract.core.downloader_download._fetch_content",
             side_effect=write_tmp_to_correct_path,
         ) as mock_fetch:
             with patch(
-                "extract.core.downloader.compute_sha256",
+                "extract.core.state.compute_sha256",
                 return_value=existing_checksum,
             ):
-                result = _download_entry(entry, tmp_path, state, known_missing)
+                result = download_and_verify(entry, tmp_path, state)
 
         assert result == "skipped"
         mock_fetch.assert_called_once()
 
-    def test_download_entry_backs_up_when_checksum_mismatches(
+    def testdownload_and_verify_backs_up_when_checksum_mismatches(
         self, tmp_path: Path,
     ):
         entry = CatalogEntry("green", 2024, 6)
@@ -185,21 +185,21 @@ class TestDownloadEntryChecksumMatch:
             tmp_file.write_bytes(new_content)
 
         with patch(
-            "extract.core.downloader._fetch_content",
+            "extract.core.downloader_download._fetch_content",
             side_effect=capture_fetch,
         ):
             with patch(
-                "extract.core.downloader.compute_sha256",
+                "extract.core.state.compute_sha256",
                 side_effect=[new_checksum, different_checksum],
             ):
-                result = _download_entry(entry, tmp_path, state, known_missing)
+                result = download_and_verify(entry, tmp_path, state)
 
         assert result == "downloaded"
         backup_path = tmp_path / entry.target_dir / f"{entry.filename}.old"
         assert backup_path.exists()
         assert backup_path.read_bytes() == old_content
 
-    def test_download_entry_renames_tmp_to_target(self, tmp_path: Path):
+    def testdownload_and_verify_renames_tmp_to_target(self, tmp_path: Path):
         entry = CatalogEntry("yellow", 2024, 1)
         state = MagicMock()
         known_missing = MagicMock()
@@ -213,21 +213,21 @@ class TestDownloadEntryChecksumMatch:
             tmp_file.write_bytes(content)
 
         with patch(
-            "extract.core.downloader._fetch_content",
+            "extract.core.downloader_download._fetch_content",
             side_effect=capture_fetch,
         ):
             with patch(
-                "extract.core.downloader.compute_sha256",
+                "extract.core.state.compute_sha256",
                 return_value=compute_sha256.__globals__["hashlib"].sha256(content).hexdigest(),
             ):
-                result = _download_entry(entry, tmp_path, state, known_missing)
+                result = download_and_verify(entry, tmp_path, state)
 
         assert result == "downloaded"
         target_path = target_dir / entry.filename
         assert target_path.exists()
         assert target_path.read_bytes() == content
 
-    def test_download_entry_saves_checksum_on_success(self, tmp_path: Path):
+    def testdownload_and_verify_saves_checksum_on_success(self, tmp_path: Path):
         entry = CatalogEntry("fhv", 2024, 3)
         state = MagicMock()
         known_missing = MagicMock()
@@ -243,18 +243,18 @@ class TestDownloadEntryChecksumMatch:
         computed = compute_sha256.__globals__["hashlib"].sha256(content).hexdigest()
 
         with patch(
-            "extract.core.downloader._fetch_content",
+            "extract.core.downloader_download._fetch_content",
             side_effect=capture_fetch,
         ):
             with patch(
-                "extract.core.downloader.compute_sha256",
+                "extract.core.state.compute_sha256",
                 return_value=computed,
             ):
-                _download_entry(entry, tmp_path, state, known_missing)
+                download_and_verify(entry, tmp_path, state)
 
         state.save.assert_called_once_with(entry.url, computed)
 
-    def test_download_entry_handles_generic_exception(self, tmp_path: Path):
+    def testdownload_and_verify_handles_generic_exception(self, tmp_path: Path):
         entry = CatalogEntry("yellow", 2024, 1)
         state = MagicMock()
         known_missing = MagicMock()
@@ -266,11 +266,11 @@ class TestDownloadEntryChecksumMatch:
             raise RuntimeError("disk full")
 
         with patch(
-            "extract.core.downloader._fetch_content",
+            "extract.core.downloader_download._fetch_content",
             side_effect=raise_runtime,
         ):
             with pytest.raises(RuntimeError):
-                _download_entry(entry, tmp_path, state, known_missing)
+                download_and_verify(entry, tmp_path, state)
 
         state.log_error.assert_called_once()
         args = state.log_error.call_args

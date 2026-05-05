@@ -8,10 +8,10 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from extract.downloader.downloader import (
-    _apply_mode,
     _process_entry,
     run,
 )
+from extract.downloader.downloader_actions import apply_mode as _apply_mode
 from extract.core.state import CatalogEntry, ErrorType
 
 

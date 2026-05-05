@@ -224,14 +224,15 @@ jobs:
         if: steps.changed.outputs.files != '' && steps.changed.outputs.files != 'FULL'
         run: |
           MODULES=$(echo "${{ steps.changed.outputs.files }}" | tr ' ' '\n' | cut -d/ -f1 | sort -u | tr '\n' ' ')
-          TEST_DIRS=""
+          E2E_FILES=""
           for mod in $MODULES; do
             if [ -d "${mod}/tests" ]; then
-              TEST_DIRS+=" ${mod}/tests/"
+              FOUND=$(find "${mod}/tests" -name "test_e2e*.py" -type f | tr '\n' ' ')
+              E2E_FILES+="$FOUND"
             fi
           done
-          if [ -n "$TEST_DIRS" ]; then
-            uv run pytest -v $TEST_DIRS -k "e2e"
+          if [ -n "$E2E_FILES" ]; then
+            uv run pytest -v $E2E_FILES
           fi
 
       - name: Run full e2e tests (main push)

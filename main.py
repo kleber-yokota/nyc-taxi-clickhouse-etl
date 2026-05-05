@@ -16,7 +16,7 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
-from extract.core.downloader import run as extract_run
+from extract.downloader.downloader import run as extract_run
 from push.core.runner import upload_from_env
 from push.core.state import UploadConfig
 

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from unittest.mock import MagicMock, call, patch
+from unittest.mock import MagicMock, patch
 
 from extract.downloader.downloader import _process_entry
 from extract.core.state import CatalogEntry, ErrorType

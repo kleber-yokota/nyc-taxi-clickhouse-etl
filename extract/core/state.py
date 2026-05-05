@@ -10,7 +10,6 @@ from pathlib import Path
 STATE_FILE = "data/.download_state.json"
 ERRORS_DIR = "data/errors"
 
-DOWNLOAD_TIMEOUT = 300
 KNOWN_MISSING_FILE = "data/known_missing.txt"
 CDN_BASE = "https://d37ci6vzurychx.cloudfront.net/trip-data"
 DATA_TYPES = ["fhv", "fhvhv", "green", "yellow"]

@@ -6,6 +6,9 @@ import logging
 from pathlib import Path
 
 from extract.core.catalog import Catalog
+from extract.core.interrupt import InterruptibleDownload
+from extract.core.known_missing import KnownMissing
+from extract.core.state_manager import State
 from extract.downloader.downloader_download import download_and_verify
 from extract.downloader.downloader_download import handle_download_error
 from extract.downloader.downloader_download import _fetch_content  # noqa: F401
@@ -16,9 +19,6 @@ from extract.downloader.downloader_util import cleanup_stale_tmp
 from extract.downloader.downloader_util import handle_http_error as _handle_http_error
 from extract.downloader.downloader_util import handle_network_error as _handle_network_error
 from extract.downloader.downloader_util import safe_unlink
-from extract.core.interrupt import InterruptibleDownload
-from extract.core.known_missing import KnownMissing
-from extract.core.state_manager import State
 
 logger = logging.getLogger(__name__)
 
@@ -44,36 +44,25 @@ def run(
     Returns:
         Dict with keys: downloaded, skipped, failed, total.
     """
-    data_dir = _resolve_data_dir(data_dir)
+    resolved_dir = _resolve_data_dir(data_dir)
     catalog = Catalog(types=types, from_year=from_year, to_year=to_year, max_entries=max_entries)
-    state = State(data_dir / ".download_state.json")
+    state = State(resolved_dir / ".download_state.json")
     _apply_mode(state, mode)
-    known_missing = KnownMissing(data_dir / "known_missing.txt")
+    known_missing = KnownMissing(resolved_dir / "known_missing.txt")
 
     entries = catalog.generate()
     if not entries:
         logger.warning("No entries to download.")
         return _make_result(0, 0, 0, 0)
 
-    interruptible = InterruptibleDownload(data_dir)
+    interruptible = InterruptibleDownload(resolved_dir)
 
-    downloaded = 0
-    skipped = 0
-    failed = 0
-    total = len(entries)
+    downloaded, skipped, failed = _execute_download_loop(
+        entries, resolved_dir, state, known_missing,
+    )
 
-    try:
-        for entry in entries:
-            downloaded, skipped, failed = process_entry(
-                entry, data_dir, state, known_missing,
-                downloaded, skipped, failed,
-            )
-    except KeyboardInterrupt:
-        interruptible.cleanup()
-        logger.info("Download interrupted by user.")
-
-    result = _make_result(downloaded, skipped, failed, total)
-    logger.info("Download complete: %s", result)
+    result = _make_result(downloaded, skipped, failed, len(entries))
+    _log_download_complete(result)
     return result
 
 
@@ -98,6 +87,59 @@ def _apply_mode(state: State, mode: str) -> None:
     """
     if mode == "full":
         state.reset()
+
+
+def _execute_download_loop(
+    entries: list,
+    data_dir: Path,
+    state: State,
+    known_missing: KnownMissing,
+) -> tuple[int, int, int]:
+    """Execute the download loop for all catalog entries.
+
+    Args:
+        entries: List of catalog entries to process.
+        data_dir: Base data directory.
+        state: Download state tracker.
+        known_missing: Known missing URLs tracker.
+
+    Returns:
+        Tuple of (downloaded, skipped, failed) counts.
+    """
+    downloaded = 0
+    skipped = 0
+    failed = 0
+
+    try:
+        for entry in entries:
+            downloaded, skipped, failed = process_entry(
+                entry, data_dir, state, known_missing,
+                downloaded, skipped, failed,
+            )
+    except KeyboardInterrupt:
+        _handle_interrupt(data_dir)
+
+    return downloaded, skipped, failed
+
+
+def _handle_interrupt(data_dir: Path) -> None:
+    """Handle keyboard interrupt by cleaning up temporary files.
+
+    Args:
+        data_dir: Base data directory for cleanup.
+    """
+    interruptible = InterruptibleDownload(data_dir)
+    interruptible.cleanup()
+    logger.info("Download interrupted by user.")
+
+
+def _log_download_complete(result: dict[str, int]) -> None:
+    """Log the final download result.
+
+    Args:
+        result: The result dictionary with download statistics.
+    """
+    logger.info("Download complete: %s", result)
 
 
 def _make_result(downloaded: int, skipped: int, failed: int, total: int) -> dict[str, int]:
@@ -130,5 +172,3 @@ _process_entry = process_entry
 _resolve_data_dir = _resolve_data_dir
 _safe_unlink = safe_unlink
 should_skip_download = should_skip_download
-
-

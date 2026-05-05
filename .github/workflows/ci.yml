@@ -66,6 +66,7 @@ jobs:
           echo "files=$FILES" >> $GITHUB_OUTPUT
 
       - name: Run mutation CI
+        if: steps.changed.outputs.files != ''
         run: uv run bash scripts/run_mutation_ci.sh 85 ${{ steps.changed.outputs.files }}
 
   quality:

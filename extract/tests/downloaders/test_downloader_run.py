@@ -9,6 +9,8 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from extract.downloader.downloader import run
+from extract.downloader.downloader_actions import make_result as _make_result
+from extract.downloader.downloader_actions import log_download_complete as _log_download_complete
 
 
 class TestRunDefaultMode:
@@ -139,7 +141,7 @@ class TestRunCounterValues:
     def test_initial_counters_are_zero(self, tmp_path: Path):
         """Verify initial counter values are 0 not None or 1."""
         from extract.core.state import CatalogEntry
-        from extract.downloader.downloader import _execute_download_loop, _make_result
+        from extract.downloader.downloader import _execute_download_loop
         from extract.core.state_manager import State
         from extract.core.known_missing import KnownMissing
         from unittest.mock import patch
@@ -257,7 +259,6 @@ class TestRunResultStructure:
     def test_result_has_all_keys(self, tmp_path: Path):
         """Verify result dict has downloaded, skipped, failed, total keys."""
         from extract.core.state import CatalogEntry
-        from extract.downloader.downloader import _make_result
 
         result = _make_result(5, 3, 2, 10)
 
@@ -272,8 +273,6 @@ class TestRunResultStructure:
 
     def test_result_values_are_integers(self, tmp_path: Path):
         """Verify all result values are integers."""
-        from extract.downloader.downloader import _make_result
-
         result = _make_result(0, 0, 0, 0)
 
         for key, value in result.items():
@@ -294,11 +293,9 @@ class TestRunResultStructure:
 
     def test_log_download_complete_logs_result(self, tmp_path: Path, caplog: pytest.LogCaptureFixture):
         """Verify logger.info is called with result dict."""
-        from extract.downloader.downloader import _log_download_complete
-
         result = {"downloaded": 5, "skipped": 3, "failed": 2, "total": 10}
 
-        with caplog.at_level(logging.INFO, logger="extract.downloader.downloader"):
+        with caplog.at_level(logging.INFO, logger="extract.downloader.downloader_actions"):
             _log_download_complete(result)
 
         assert any("Download complete" in r.message for r in caplog.records)
@@ -306,11 +303,9 @@ class TestRunResultStructure:
 
     def test_log_download_complete_with_zero_result(self, tmp_path: Path, caplog: pytest.LogCaptureFixture):
         """Verify logger.info is called even with zero result."""
-        from extract.downloader.downloader import _log_download_complete
-
         result = {"downloaded": 0, "skipped": 0, "failed": 0, "total": 0}
 
-        with caplog.at_level(logging.INFO, logger="extract.downloader.downloader"):
+        with caplog.at_level(logging.INFO, logger="extract.downloader.downloader_actions"):
             _log_download_complete(result)
 
         assert any("Download complete" in r.message for r in caplog.records)

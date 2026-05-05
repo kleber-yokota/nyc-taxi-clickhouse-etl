@@ -9,6 +9,9 @@ from extract.core.catalog import Catalog
 from extract.core.interrupt import InterruptibleDownload
 from extract.core.known_missing import KnownMissing
 from extract.core.state_manager import State
+from extract.downloader.downloader_actions import apply_mode
+from extract.downloader.downloader_actions import log_download_complete
+from extract.downloader.downloader_actions import make_result
 from extract.downloader.downloader_download import download_and_verify
 from extract.downloader.downloader_download import handle_download_error
 from extract.downloader.downloader_download import _fetch_content  # noqa: F401
@@ -47,13 +50,13 @@ def run(
     resolved_dir = _resolve_data_dir(data_dir)
     catalog = Catalog(types=types, from_year=from_year, to_year=to_year, max_entries=max_entries)
     state = State(resolved_dir / ".download_state.json")
-    _apply_mode(state, mode)
+    apply_mode(state, mode)
     known_missing = KnownMissing(resolved_dir / "known_missing.txt")
 
     entries = catalog.generate()
     if not entries:
         logger.warning("No entries to download.")
-        return _make_result(0, 0, 0, 0)
+        return make_result(0, 0, 0, 0)
 
     interruptible = InterruptibleDownload(resolved_dir)
 
@@ -61,8 +64,8 @@ def run(
         entries, resolved_dir, state, known_missing,
     )
 
-    download_result = _make_result(downloaded, skipped, failed, len(entries))
-    _log_download_complete(download_result)
+    result = make_result(downloaded, skipped, failed, len(entries))
+    log_download_complete(result)
     return result
 
 
@@ -76,17 +79,6 @@ def _resolve_data_dir(data_dir: str | Path | None) -> Path:
         Resolved Path object.
     """
     return Path(data_dir) if data_dir else Path("data")
-
-
-def _apply_mode(state: State, mode: str) -> None:
-    """Reset state if running in full mode.
-
-    Args:
-        state: The State object to reset.
-        mode: The run mode.
-    """
-    if mode == "full":
-        state.reset()
 
 
 def _execute_download_loop(
@@ -133,41 +125,12 @@ def _handle_interrupt(data_dir: Path) -> None:
     logger.info("Download interrupted by user.")
 
 
-def _log_download_complete(result: dict[str, int]) -> None:
-    """Log the final download result.
-
-    Args:
-        result: The result dictionary with download statistics.
-    """
-    logger.info("Download complete: %s", result)
-
-
-def _make_result(downloaded: int, skipped: int, failed: int, total: int) -> dict[str, int]:
-    """Build the result dictionary.
-
-    Args:
-        downloaded: Number of files downloaded.
-        skipped: Number of files skipped.
-        failed: Number of files that failed.
-        total: Total number of entries.
-
-    Returns:
-        Result dictionary.
-    """
-    return {
-        "downloaded": downloaded,
-        "skipped": skipped,
-        "failed": failed,
-        "total": total,
-    }
-
-
 # Aliases para compatibilidade com testes
 _backup_existing_file = backup_existing_file
 _cleanup_stale_tmp = cleanup_stale_tmp
 _download_entry = download_and_verify
 _handle_download_error = handle_download_error
-_make_result = _make_result
+_make_result = make_result
 _process_entry = process_entry
 _resolve_data_dir = _resolve_data_dir
 _safe_unlink = safe_unlink

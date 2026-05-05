@@ -22,7 +22,7 @@ class TestPushFresh:
         client = FakeS3Client(bucket="b", prefix="data")
         state = PushState(sample_files / ".push_state.json")
 
-        result =        result = upload(sample_files, client, state)
+        result = upload(sample_files, client, state)
 
         assert result.uploaded == 3
         assert result.skipped == 0
@@ -76,7 +76,8 @@ class TestPushSkip:
         assert result.skipped == 0
         assert client.upload_count == 6
 
-    def test_push_skip_pre_recorded(self, sample_files: Path):
+    def test_push_skip_pre_recorded(self, sample_files: Path, caplog):
+        caplog.set_level("DEBUG")
         client = FakeS3Client(bucket="b", prefix="data")
         one_file = sample_files / "yellow" / "yellow_tripdata_2024-01.parquet"
         checksum = hashlib.sha256(one_file.read_bytes()).hexdigest()
@@ -95,6 +96,7 @@ class TestPushSkip:
         assert result.uploaded == 2
         assert result.skipped == 1
         assert result.total == 3
+        assert any("Skipping (already pushed)" in record.message for record in caplog.records)
 
     def test_push_overwrite_pre_recorded(self, sample_files: Path):
         client = FakeS3Client(bucket="b", prefix="data")
@@ -169,7 +171,8 @@ class TestPushFiltering:
 class TestPushErrors:
     """Tests for error handling."""
 
-    def test_push_error_one_file(self, sample_files: Path):
+    def test_push_error_one_file(self, sample_files: Path, caplog):
+        caplog.set_level("ERROR")
         client = FakeS3Client(bucket="b", prefix="data")
         state = PushState(sample_files / ".push_state.json")
 
@@ -184,8 +187,12 @@ class TestPushErrors:
         assert result.uploaded == 2
         assert result.failed == 1
         assert result.total == 3
+        error_messages = [record.message for record in caplog.records if record.levelname == "ERROR"]
+        assert any("Unexpected error uploading" in msg for msg in error_messages)
+        assert any("2024-02" in msg for msg in error_messages)
 
-    def test_push_nonexistent_dir(self, tmp_path: Path):
+    def test_push_nonexistent_dir(self, tmp_path: Path, caplog):
+        caplog.set_level("WARNING")
         client = FakeS3Client(bucket="b")
         state = PushState(tmp_path / ".push_state.json")
 
@@ -193,3 +200,4 @@ class TestPushErrors:
 
         assert result.uploaded == 0
         assert result.total == 0
+        assert any("Data directory does not exist" in record.message for record in caplog.records)

@@ -22,6 +22,7 @@ upload(data_dir, client, state, config) → walk data/ tree
       → multipart upload via S3Client
       → record push in state
     → return PushResult { uploaded, skipped, failed, total }
+    → if delete_after_push=True: delete local file
 ```
 
 ### Concrete example
@@ -50,6 +51,19 @@ from push.core.state import UploadConfig
 # Requires: S3_BUCKET, S3_ENDPOINT_URL, AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY
 result = upload_from_env("data")
 # result: PushResult(uploaded=12, skipped=0, failed=0, total=12)
+```
+
+### Upload with auto-delete
+
+```python
+from push.core import upload_from_env
+from push.core.state import UploadConfig
+
+# Upload and delete local files after successful push
+config = UploadConfig(delete_after_push=True)
+result = upload_from_env("data", config=config)
+# result: PushResult(uploaded=12, skipped=0, failed=0, total=12)
+# Local parquet files are deleted after upload confirmation
 ```
 
 ---

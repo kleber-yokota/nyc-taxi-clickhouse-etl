@@ -78,7 +78,6 @@ class TestCatalog:
         catalog = Catalog()
         entries = catalog.generate()
         assert len(entries) > 0
-        types_in_order = sorted(DATA_TYPES)
         for i in range(1, len(entries)):
             prev = entries[i - 1]
             curr = entries[i]

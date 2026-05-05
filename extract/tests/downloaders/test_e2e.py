@@ -122,6 +122,6 @@ class TestTmpCleaned:
             max_entries=3,
         )
 
-        for root, dirs, files in download_dir.walk():
+        for _, _, files in download_dir.walk():
             for f in files:
                 assert not str(f).endswith(".download.tmp")

@@ -7,8 +7,8 @@ from pathlib import Path
 
 import requests
 
-from .state import ErrorType
-from .state_manager import State
+from extract.core.state import ErrorType
+from extract.core.state_manager import State
 
 logger = logging.getLogger(__name__)
 

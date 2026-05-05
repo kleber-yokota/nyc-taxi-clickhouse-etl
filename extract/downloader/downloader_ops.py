@@ -5,11 +5,11 @@ from __future__ import annotations
 import logging
 from pathlib import Path
 
-from .downloader_download import download_and_verify
-from .downloader_download import handle_download_error
-from .known_missing import KnownMissing
-from .state import CatalogEntry
-from .state_manager import State
+from extract.downloader.downloader_download import download_and_verify
+from extract.downloader.downloader_download import handle_download_error
+from extract.core.known_missing import KnownMissing
+from extract.core.state import CatalogEntry
+from extract.core.state_manager import State
 
 logger = logging.getLogger(__name__)
 

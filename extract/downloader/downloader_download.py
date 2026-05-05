@@ -7,12 +7,12 @@ from pathlib import Path
 
 import requests
 
-from .downloader_util import backup_existing_file
-from .downloader_util import cleanup_stale_tmp
-from .downloader_util import safe_unlink
-from .known_missing import KnownMissing
-from .state import CatalogEntry, ErrorType, compute_sha256
-from .state_manager import State
+from extract.downloader.downloader_util import backup_existing_file
+from extract.downloader.downloader_util import cleanup_stale_tmp
+from extract.downloader.downloader_util import safe_unlink
+from extract.core.known_missing import KnownMissing
+from extract.core.state import CatalogEntry, ErrorType, compute_sha256
+from extract.core.state_manager import State
 
 logger = logging.getLogger(__name__)
 

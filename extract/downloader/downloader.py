@@ -5,20 +5,20 @@ from __future__ import annotations
 import logging
 from pathlib import Path
 
-from .catalog import Catalog
-from .downloader_download import download_and_verify
-from .downloader_download import handle_download_error
-from .downloader_download import _fetch_content  # noqa: F401
-from .downloader_ops import process_entry
-from .downloader_ops import should_skip_download
-from .downloader_util import backup_existing_file
-from .downloader_util import cleanup_stale_tmp
-from .downloader_util import handle_http_error as _handle_http_error
-from .downloader_util import handle_network_error as _handle_network_error
-from .downloader_util import safe_unlink
-from .interrupt import InterruptibleDownload
-from .known_missing import KnownMissing
-from .state_manager import State
+from extract.core.catalog import Catalog
+from extract.downloader.downloader_download import download_and_verify
+from extract.downloader.downloader_download import handle_download_error
+from extract.downloader.downloader_download import _fetch_content  # noqa: F401
+from extract.downloader.downloader_ops import process_entry
+from extract.downloader.downloader_ops import should_skip_download
+from extract.downloader.downloader_util import backup_existing_file
+from extract.downloader.downloader_util import cleanup_stale_tmp
+from extract.downloader.downloader_util import handle_http_error as _handle_http_error
+from extract.downloader.downloader_util import handle_network_error as _handle_network_error
+from extract.downloader.downloader_util import safe_unlink
+from extract.core.interrupt import InterruptibleDownload
+from extract.core.known_missing import KnownMissing
+from extract.core.state_manager import State
 
 logger = logging.getLogger(__name__)
 
@@ -131,6 +131,4 @@ _resolve_data_dir = _resolve_data_dir
 _safe_unlink = safe_unlink
 should_skip_download = should_skip_download
 
-# Import helpers for test compatibility
-from .downloader_download import _fetch_content  # noqa: F401
 

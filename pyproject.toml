@@ -6,6 +6,28 @@ build-backend = "setuptools.build_meta"
 name = "nyc-taxi-clickhouse-etl"
 version = "0.1.0"
 requires-python = ">=3.11"
+dependencies = [
+    "astroid>=4.1.2",
+    "boto3>=1.43.2",
+    "minio>=7.2.20",
+    "python-dotenv>=1.2.2",
+    "requests>=2.31",
+]
+
+[project.optional-dependencies]
+test = [
+    "pytest>=7.0",
+    "hypothesis>=6.0",
+    "mutmut>=3.0",
+    "atheris>=3.0",
+    "coverage>=7.0",
+    "responses>=0.23",
+    "vcrpy>=5.0",
+]
+
+[tool.hypothesis]
+max_examples = 30
+deadline = 2000
 
 [tool.setuptools.packages.find]
 exclude = ["mutants*", "data*"]

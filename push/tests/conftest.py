@@ -6,13 +6,17 @@ import boto3
 from botocore.config import Config
 from hashlib import sha256
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import patch, MagicMock
 
 import pytest
 import testcontainers.minio as mc
 
 from push.core.client import S3Client
 from push.core.state import PushState
+
+
+# Deterministic checksum for fake parquet content (cached to avoid recomputation)
+_FAKE_CHECKSUMS: dict[str, str] = {}
 
 
 @pytest.fixture(scope="module")
@@ -109,3 +113,31 @@ def sample_files_with_state(push_dir: Path, fake_parquet_content: bytes, push_st
     state.save()
 
     return push_dir
+
+
+@pytest.fixture(autouse=True)
+def _mock_sha256(monkeypatch: pytest.MonkeyPatch, request: pytest.FixtureRequest):
+    """Auto-mock compute_sha256 for faster tests.
+
+    Skips only tests in test_checksum.py, test_properties.py, test_fuzz.py
+    which specifically test checksum correctness.
+    """
+    # Skip checksum-specific tests
+    test_path = request.node.fspath.strpath
+    if "test_checksum.py" in test_path or "test_properties.py" in test_path or "test_fuzz.py" in test_path:
+        return
+
+    from push.core import checksum as checksum_module
+
+    def fast_sha256(file_path: Path) -> str:
+        """Compute checksum but cache results to avoid redundant file reads."""
+        content = file_path.read_bytes()
+        content_key = content.hex()
+        if content_key not in _FAKE_CHECKSUMS:
+            _FAKE_CHECKSUMS[content_key] = sha256(content).hexdigest()
+        return _FAKE_CHECKSUMS[content_key]
+
+    monkeypatch.setattr(checksum_module, "compute_sha256", fast_sha256)
+    # Also patch in push module where it's imported
+    from push.core import push as push_module
+    monkeypatch.setattr(push_module, "compute_sha256", fast_sha256)

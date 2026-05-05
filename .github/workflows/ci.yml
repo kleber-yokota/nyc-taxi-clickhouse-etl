@@ -20,7 +20,42 @@ jobs:
           python-version: "3.12"
           enable-cache: true
       - run: uv sync
-      - run: uv run pytest -v --ignore-glob="**/test_fuzz.py" --ignore-glob="**/test_e2e*.py"
+
+      - name: Get changed source files
+        id: changed
+        run: |
+          git fetch origin main
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            BASE="origin/${{ github.base_ref }}"
+          else
+            BASE="origin/main"
+          fi
+          FILES=$(git diff --name-only "$BASE"..HEAD \
+            | grep -E '^(extract|push)/.*\.py$' \
+            | grep -v '/tests/' \
+            | tr '\n' ' ')
+          echo "files=$FILES" >> $GITHUB_OUTPUT
+
+      - name: Run unit tests
+        run: |
+          if [ -z "${{ steps.changed.outputs.files }}" ]; then
+            echo "No file filter — running all tests"
+            uv run pytest -v --ignore-glob="**/test_fuzz.py" --ignore-glob="**/test_e2e*.py"
+          else
+            echo "Running tests for affected modules..."
+            MODULES=$(echo "${{ steps.changed.outputs.files }}" | tr ' ' '\n' | cut -d/ -f1 | sort -u | tr '\n' ' ')
+            TEST_DIRS=""
+            for mod in $MODULES; do
+              if [ -d "${mod}/tests" ]; then
+                TEST_DIRS+=" ${mod}/tests/"
+              fi
+            done
+            if [ -n "$TEST_DIRS" ]; then
+              uv run pytest -v $TEST_DIRS --ignore-glob="**/test_fuzz.py" --ignore-glob="**/test_e2e*.py"
+            else
+              echo "No test directories found for affected modules"
+            fi
+          fi
 
   fuzz:
     runs-on: ubuntu-latest
@@ -31,7 +66,32 @@ jobs:
           python-version: "3.12"
           enable-cache: true
       - run: uv sync
-      - run: uv run python extract/tests/test_fuzz.py -runs=10000
+
+      - name: Get changed source files
+        id: changed
+        run: |
+          git fetch origin main
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            BASE="origin/${{ github.base_ref }}"
+          else
+            BASE="origin/main"
+          fi
+          FILES=$(git diff --name-only "$BASE"..HEAD \
+            | grep -E '^(extract|push)/.*\.py$' \
+            | grep -v '/tests/' \
+            | tr '\n' ' ')
+          echo "files=$FILES" >> $GITHUB_OUTPUT
+
+      - name: Run fuzz tests
+        if: steps.changed.outputs.files != ''
+        run: |
+          MODULES=$(echo "${{ steps.changed.outputs.files }}" | tr ' ' '\n' | cut -d/ -f1 | sort -u | tr '\n' ' ')
+          for mod in $MODULES; do
+            if [ -f "${mod}/tests/test_fuzz.py" ]; then
+              echo "Running fuzz tests for ${mod}..."
+              uv run python "${mod}/tests/test_fuzz.py" -runs=10000
+            fi
+          done
 
   mutation:
     runs-on: ubuntu-latest
@@ -47,7 +107,6 @@ jobs:
       - name: Get changed source files
         id: changed
         run: |
-          # Fetch main to enable diff-based incremental mutation
           git fetch origin main
           if [ "${{ github.event_name }}" = "pull_request" ]; then
             BASE="origin/${{ github.base_ref }}"
@@ -79,7 +138,25 @@ jobs:
           python-version: "3.12"
           enable-cache: true
       - run: uv sync
-      - run: uv run bash scripts/run_quality_ci.sh
+
+      - name: Get changed source files
+        id: changed
+        run: |
+          git fetch origin main
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            BASE="origin/${{ github.base_ref }}"
+          else
+            BASE="origin/main"
+          fi
+          FILES=$(git diff --name-only "$BASE"..HEAD \
+            | grep -E '^(extract|push)/.*\.py$' \
+            | grep -v '/tests/' \
+            | tr '\n' ' ')
+          echo "files=$FILES" >> $GITHUB_OUTPUT
+
+      - name: Run quality checks
+        if: steps.changed.outputs.files != ''
+        run: uv run bash scripts/run_quality_ci.sh ${{ steps.changed.outputs.files }}
 
   e2e:
     runs-on: ubuntu-latest

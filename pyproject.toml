@@ -19,6 +19,11 @@ dependencies = [
     "coverage>=7.0",
     "responses>=0.23",
     "vcrpy>=5.0",
+    "testcontainers>=4.5",
+    "radon>=6.0",
+    "xenon>=0.9",
+    "vulture>=2.0",
+    "cohesion>=1.0",
 ]
 
 [tool.hypothesis]

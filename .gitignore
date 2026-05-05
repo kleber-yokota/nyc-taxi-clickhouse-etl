@@ -43,3 +43,6 @@ Thumbs.db
 !README.md
 */AGENTS.md
 */REVIEW_EXCEPTION.md
+
+# Environment
+.env

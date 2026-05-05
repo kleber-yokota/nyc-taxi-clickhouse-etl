@@ -610,6 +610,7 @@ dependencies = [
     { name = "astroid" },
     { name = "boto3" },
     { name = "minio" },
+    { name = "python-dotenv" },
     { name = "requests" },
 ]
 
@@ -651,6 +652,7 @@ requires-dist = [
     { name = "minio", specifier = ">=7.2.20" },
     { name = "mutmut", marker = "extra == 'test'", specifier = ">=3.0" },
     { name = "pytest", marker = "extra == 'test'", specifier = ">=7.0" },
+    { name = "python-dotenv", specifier = ">=1.2.2" },
     { name = "requests", specifier = ">=2.31" },
     { name = "responses", marker = "extra == 'test'", specifier = ">=0.23" },
     { name = "vcrpy", marker = "extra == 'test'", specifier = ">=5.0" },

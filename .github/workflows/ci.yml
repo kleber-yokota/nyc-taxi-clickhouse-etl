@@ -24,38 +24,46 @@ jobs:
       - name: Get changed source files
         id: changed
         run: |
-          git fetch origin main
-          if [ "${{ github.event_name }}" = "pull_request" ]; then
-            BASE="origin/${{ github.base_ref }}"
+          if [ "${{ github.event_name }}" = "push" ] && [ "${{ github.ref }}" = "refs/heads/main" ]; then
+            echo "Push to main — running full test suite"
+            echo "files=FULL" >> $GITHUB_OUTPUT
           else
-            BASE="origin/main"
+            git fetch origin main
+            if [ "${{ github.event_name }}" = "pull_request" ]; then
+              BASE="origin/${{ github.base_ref }}"
+            else
+              BASE="origin/main"
+            fi
+            FILES=$(git diff --name-only "$BASE"..HEAD \
+              | grep -E '^(extract|push)/.*\.py$' \
+              | grep -v '/tests/' \
+              | tr '\n' ' ')
+            if [ -z "$FILES" ]; then
+              echo "No Python source files changed — skipping"
+            else
+              echo "Changed: $FILES"
+            fi
+            echo "files=$FILES" >> $GITHUB_OUTPUT
           fi
-          FILES=$(git diff --name-only "$BASE"..HEAD \
-            | grep -E '^(extract|push)/.*\.py$' \
-            | grep -v '/tests/' \
-            | tr '\n' ' ')
-          echo "files=$FILES" >> $GITHUB_OUTPUT
 
       - name: Run unit tests
+        if: steps.changed.outputs.files != '' && steps.changed.outputs.files != 'FULL'
         run: |
-          if [ -z "${{ steps.changed.outputs.files }}" ]; then
-            echo "No file filter — running all tests"
-            uv run pytest -v --ignore-glob="**/test_fuzz.py" --ignore-glob="**/test_e2e*.py"
-          else
-            echo "Running tests for affected modules..."
-            MODULES=$(echo "${{ steps.changed.outputs.files }}" | tr ' ' '\n' | cut -d/ -f1 | sort -u | tr '\n' ' ')
-            TEST_DIRS=""
-            for mod in $MODULES; do
-              if [ -d "${mod}/tests" ]; then
-                TEST_DIRS+=" ${mod}/tests/"
-              fi
-            done
-            if [ -n "$TEST_DIRS" ]; then
-              uv run pytest -v $TEST_DIRS --ignore-glob="**/test_fuzz.py" --ignore-glob="**/test_e2e*.py"
-            else
-              echo "No test directories found for affected modules"
+          echo "Running tests for affected modules..."
+          MODULES=$(echo "${{ steps.changed.outputs.files }}" | tr ' ' '\n' | cut -d/ -f1 | sort -u | tr '\n' ' ')
+          TEST_DIRS=""
+          for mod in $MODULES; do
+            if [ -d "${mod}/tests" ]; then
+              TEST_DIRS+=" ${mod}/tests/"
             fi
+          done
+          if [ -n "$TEST_DIRS" ]; then
+            uv run pytest -v $TEST_DIRS --ignore-glob="**/test_fuzz.py" --ignore-glob="**/test_e2e*.py"
           fi
+
+      - name: Run full unit tests (main push)
+        if: steps.changed.outputs.files == 'FULL'
+        run: uv run pytest -v --ignore-glob="**/test_fuzz.py" --ignore-glob="**/test_e2e*.py"
 
   fuzz:
     runs-on: ubuntu-latest
@@ -70,20 +78,24 @@ jobs:
       - name: Get changed source files
         id: changed
         run: |
-          git fetch origin main
-          if [ "${{ github.event_name }}" = "pull_request" ]; then
-            BASE="origin/${{ github.base_ref }}"
+          if [ "${{ github.event_name }}" = "push" ] && [ "${{ github.ref }}" = "refs/heads/main" ]; then
+            echo "files=FULL" >> $GITHUB_OUTPUT
           else
-            BASE="origin/main"
+            git fetch origin main
+            if [ "${{ github.event_name }}" = "pull_request" ]; then
+              BASE="origin/${{ github.base_ref }}"
+            else
+              BASE="origin/main"
+            fi
+            FILES=$(git diff --name-only "$BASE"..HEAD \
+              | grep -E '^(extract|push)/.*\.py$' \
+              | grep -v '/tests/' \
+              | tr '\n' ' ')
+            echo "files=$FILES" >> $GITHUB_OUTPUT
           fi
-          FILES=$(git diff --name-only "$BASE"..HEAD \
-            | grep -E '^(extract|push)/.*\.py$' \
-            | grep -v '/tests/' \
-            | tr '\n' ' ')
-          echo "files=$FILES" >> $GITHUB_OUTPUT
 
-      - name: Run fuzz tests
-        if: steps.changed.outputs.files != ''
+      - name: Run fuzz tests (incremental)
+        if: steps.changed.outputs.files != '' && steps.changed.outputs.files != 'FULL'
         run: |
           MODULES=$(echo "${{ steps.changed.outputs.files }}" | tr ' ' '\n' | cut -d/ -f1 | sort -u | tr '\n' ' ')
           for mod in $MODULES; do
@@ -92,6 +104,10 @@ jobs:
               uv run python "${mod}/tests/test_fuzz.py" -runs=10000
             fi
           done
+
+      - name: Run full fuzz tests (main push)
+        if: steps.changed.outputs.files == 'FULL'
+        run: uv run python extract/tests/test_fuzz.py -runs=10000
 
   mutation:
     runs-on: ubuntu-latest
@@ -107,26 +123,35 @@ jobs:
       - name: Get changed source files
         id: changed
         run: |
-          git fetch origin main
-          if [ "${{ github.event_name }}" = "pull_request" ]; then
-            BASE="origin/${{ github.base_ref }}"
+          if [ "${{ github.event_name }}" = "push" ] && [ "${{ github.ref }}" = "refs/heads/main" ]; then
+            echo "Push to main — running full mutation suite"
+            echo "files=FULL" >> $GITHUB_OUTPUT
           else
-            BASE="origin/main"
+            git fetch origin main
+            if [ "${{ github.event_name }}" = "pull_request" ]; then
+              BASE="origin/${{ github.base_ref }}"
+            else
+              BASE="origin/main"
+            fi
+            FILES=$(git diff --name-only "$BASE"..HEAD \
+              | grep -E '^(extract|push)/.*\.py$' \
+              | grep -v '/tests/' \
+              | tr '\n' ' ')
+            if [ -z "$FILES" ]; then
+              echo "No Python source files changed — skipping mutation"
+            else
+              echo "Mutating: $FILES"
+            fi
+            echo "files=$FILES" >> $GITHUB_OUTPUT
           fi
-          FILES=$(git diff --name-only "$BASE"..HEAD \
-            | grep -E '^(extract|push)/.*\.py$' \
-            | grep -v '/tests/' \
-            | tr '\n' ' ')
-          if [ -z "$FILES" ]; then
-            echo "No Python source files changed — skipping mutation"
-          else
-            echo "Mutating: $FILES"
-          fi
-          echo "files=$FILES" >> $GITHUB_OUTPUT
 
-      - name: Run mutation CI
-        if: steps.changed.outputs.files != ''
+      - name: Run mutation CI (incremental)
+        if: steps.changed.outputs.files != '' && steps.changed.outputs.files != 'FULL'
         run: uv run bash scripts/run_mutation_ci.sh 85 ${{ steps.changed.outputs.files }}
+
+      - name: Run mutation CI (full)
+        if: steps.changed.outputs.files == 'FULL'
+        run: uv run bash scripts/run_mutation_ci.sh 85
 
   quality:
     runs-on: ubuntu-latest
@@ -142,21 +167,29 @@ jobs:
       - name: Get changed source files
         id: changed
         run: |
-          git fetch origin main
-          if [ "${{ github.event_name }}" = "pull_request" ]; then
-            BASE="origin/${{ github.base_ref }}"
+          if [ "${{ github.event_name }}" = "push" ] && [ "${{ github.ref }}" = "refs/heads/main" ]; then
+            echo "files=FULL" >> $GITHUB_OUTPUT
           else
-            BASE="origin/main"
+            git fetch origin main
+            if [ "${{ github.event_name }}" = "pull_request" ]; then
+              BASE="origin/${{ github.base_ref }}"
+            else
+              BASE="origin/main"
+            fi
+            FILES=$(git diff --name-only "$BASE"..HEAD \
+              | grep -E '^(extract|push)/.*\.py$' \
+              | grep -v '/tests/' \
+              | tr '\n' ' ')
+            echo "files=$FILES" >> $GITHUB_OUTPUT
           fi
-          FILES=$(git diff --name-only "$BASE"..HEAD \
-            | grep -E '^(extract|push)/.*\.py$' \
-            | grep -v '/tests/' \
-            | tr '\n' ' ')
-          echo "files=$FILES" >> $GITHUB_OUTPUT
 
-      - name: Run quality checks
-        if: steps.changed.outputs.files != ''
+      - name: Run quality checks (incremental)
+        if: steps.changed.outputs.files != '' && steps.changed.outputs.files != 'FULL'
         run: uv run bash scripts/run_quality_ci.sh ${{ steps.changed.outputs.files }}
+
+      - name: Run full quality checks (main push)
+        if: steps.changed.outputs.files == 'FULL'
+        run: uv run bash scripts/run_quality_ci.sh
 
   e2e:
     runs-on: ubuntu-latest

@@ -1,8 +1,12 @@
 name: CI
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref_name }}
+  cancel-in-progress: true
+
 on:
   push:
-    branches: [ main, 'feat/**' ]
+    branches: [ main ]
   pull_request:
     branches: [ main ]
 
@@ -62,4 +66,4 @@ jobs:
           python-version: "3.12"
           cache: true
       - run: uv sync --dev
-      - run: uv run pytest -v extract/tests/test_e2e.py extract/tests/test_e2e_errors.py extract/tests/test_e2e_retry.py
+      - run: uv run pytest -v extract/tests/test_e2e.py extract/tests/test_e2e_errors.py extract/tests/test_e2e_retry.py push/tests/test_e2e_upload.py push/tests/test_e2e_client.py

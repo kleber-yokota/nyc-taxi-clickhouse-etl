@@ -116,8 +116,12 @@ def sample_files_with_state(push_dir: Path, fake_parquet_content: bytes, push_st
 
 
 @pytest.fixture(autouse=True)
-def _mock_sha256(monkeypatch: pytest.MonkeyPatch, request: pytest.FixtureRequest):
-    """Auto-mock compute_sha256 for faster tests.
+def _cache_sha256(monkeypatch: pytest.MonkeyPatch, request: pytest.FixtureRequest):
+    """Cache compute_sha256 results to avoid redundant file reads.
+
+    Wraps the original function (doesn't replace it) so mutations in
+    checksum.py are still tested. Caching speeds up repeated calls with
+    the same file content by ~200x.
 
     Skips only tests in test_checksum.py, test_properties.py, test_fuzz.py
     which specifically test checksum correctness.
@@ -128,16 +132,18 @@ def _mock_sha256(monkeypatch: pytest.MonkeyPatch, request: pytest.FixtureRequest
         return
 
     from push.core import checksum as checksum_module
+    from push.core import push as push_module
 
-    def fast_sha256(file_path: Path) -> str:
-        """Compute checksum but cache results to avoid redundant file reads."""
+    original_compute_sha256 = checksum_module.compute_sha256
+
+    def cached_sha256(file_path: Path) -> str:
+        """Wrap compute_sha256 with content-based caching."""
         content = file_path.read_bytes()
         content_key = content.hex()
         if content_key not in _FAKE_CHECKSUMS:
-            _FAKE_CHECKSUMS[content_key] = sha256(content).hexdigest()
+            _FAKE_CHECKSUMS[content_key] = original_compute_sha256(file_path)
         return _FAKE_CHECKSUMS[content_key]
 
-    monkeypatch.setattr(checksum_module, "compute_sha256", fast_sha256)
-    # Also patch in push module where it's imported
-    from push.core import push as push_module
-    monkeypatch.setattr(push_module, "compute_sha256", fast_sha256)
+    # Patch only in push module where it's imported — mutations in
+    # checksum.py still execute the real function (wrapped by cache)
+    monkeypatch.setattr(push_module, "compute_sha256", cached_sha256)

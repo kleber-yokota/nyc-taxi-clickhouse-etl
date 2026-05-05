@@ -61,8 +61,8 @@ def run(
         entries, resolved_dir, state, known_missing,
     )
 
-    result = _make_result(downloaded, skipped, failed, len(entries))
-    _log_download_complete(result)
+    download_result = _make_result(downloaded, skipped, failed, len(entries))
+    _log_download_complete(download_result)
     return result
 
 

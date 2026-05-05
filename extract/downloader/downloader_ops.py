@@ -75,12 +75,12 @@ def process_entry(
         return downloaded, skipped, failed
 
     try:
-        result = download_and_verify(entry, data_dir, state, known_missing)
-        if result == "skipped":
+        download_result = download_and_verify(entry, data_dir, state, known_missing)
+        if download_result == "skipped":
             skipped += 1
-        elif result == "downloaded":
+        elif download_result == "downloaded":
             downloaded += 1
-        elif result == "failed":
+        elif download_result == "failed":
             failed += 1
     except Exception as e:
         handle_download_error(e, entry, state, known_missing)

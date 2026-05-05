@@ -102,8 +102,8 @@ class State:
         if path.exists():
             try:
                 with open(path, "r") as f:
-                    data = json.load(f)
-                self.checksums = data.get("checksums", {})
+                    state_data = json.load(f)
+                self.checksums = state_data.get("checksums", {})
             except (json.JSONDecodeError, KeyError):
                 self.checksums = {}
         self._ensure_dirs()

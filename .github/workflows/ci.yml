@@ -18,8 +18,8 @@ jobs:
       - uses: astral-sh/setup-uv@v4
         with:
           python-version: "3.12"
-          cache: true
-      - run: uv sync --dev
+          enable-cache: true
+      - run: uv sync
       - run: uv run pytest -v --ignore-glob="**/test_fuzz.py" --ignore-glob="**/test_e2e*.py"
 
   fuzz:
@@ -29,8 +29,8 @@ jobs:
       - uses: astral-sh/setup-uv@v4
         with:
           python-version: "3.12"
-          cache: true
-      - run: uv sync --dev
+          enable-cache: true
+      - run: uv sync
       - run: uv run python extract/tests/test_fuzz.py -runs=10000
 
   mutation:
@@ -41,8 +41,8 @@ jobs:
       - uses: astral-sh/setup-uv@v4
         with:
           python-version: "3.12"
-          cache: true
-      - run: uv sync --dev
+          enable-cache: true
+      - run: uv sync
       - run: uv run bash scripts/run_mutation_ci.sh 85
 
   quality:
@@ -53,8 +53,8 @@ jobs:
       - uses: astral-sh/setup-uv@v4
         with:
           python-version: "3.12"
-          cache: true
-      - run: uv sync --dev
+          enable-cache: true
+      - run: uv sync
       - run: uv run bash scripts/run_quality_ci.sh
 
   e2e:
@@ -64,6 +64,6 @@ jobs:
       - uses: astral-sh/setup-uv@v4
         with:
           python-version: "3.12"
-          cache: true
-      - run: uv sync --dev
+          enable-cache: true
+      - run: uv sync
       - run: uv run pytest -v extract/tests/test_e2e.py extract/tests/test_e2e_errors.py extract/tests/test_e2e_retry.py push/tests/test_e2e_upload.py push/tests/test_e2e_client.py

@@ -117,3 +117,61 @@ class TestPushSkip:
 
         assert result.uploaded == 1
         assert result.skipped == 0
+
+    def test_push_delete_after_push(self, sample_files: Path, s3_client, caplog):
+        import logging
+        caplog.set_level(logging.INFO)
+        state_file = sample_files / ".push_state.json"
+        s3_client.create_bucket()
+        state = PushState(state_file)
+
+        from push.core.push import upload
+        result = upload(
+            sample_files,
+            s3_client,
+            state,
+            config=UploadConfig(delete_after_push=True),
+        )
+
+        assert result.uploaded == 3
+        assert result.skipped == 0
+        assert result.failed == 0
+        assert result.total == 3
+        for parquet in sample_files.rglob("*.parquet"):
+            assert not parquet.exists(), f"File should be deleted: {parquet}"
+        objects = s3_client.list_objects()
+        assert len(objects) == 3
+
+    def test_push_delete_after_push_with_overwrite(self, sample_files: Path, s3_client):
+        state_file = sample_files / ".push_state.json"
+        s3_client.create_bucket()
+        state = PushState(state_file)
+
+        from push.core.push import upload
+        result = upload(
+            sample_files,
+            s3_client,
+            state,
+            config=UploadConfig(delete_after_push=True, overwrite=True),
+        )
+
+        assert result.uploaded == 3
+        for parquet in sample_files.rglob("*.parquet"):
+            assert not parquet.exists()
+
+    def test_push_delete_after_push_false_keeps_files(self, sample_files: Path, s3_client):
+        state_file = sample_files / ".push_state.json"
+        s3_client.create_bucket()
+        state = PushState(state_file)
+
+        from push.core.push import upload
+        result = upload(
+            sample_files,
+            s3_client,
+            state,
+            config=UploadConfig(delete_after_push=False),
+        )
+
+        assert result.uploaded == 3
+        for parquet in sample_files.rglob("*.parquet"):
+            assert parquet.exists()

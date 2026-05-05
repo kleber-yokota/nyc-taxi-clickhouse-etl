@@ -15,7 +15,8 @@ from push.tests.fake_s3 import FakeS3Client
 class TestDeleteAfterPush:
     """Tests for delete_after_push functionality."""
 
-    def test_delete_after_push_removes_file(self, sample_files: Path):
+    def test_delete_after_push_removes_file(self, sample_files: Path, caplog):
+        caplog.set_level("INFO")
         client = FakeS3Client(bucket="b", prefix="data")
         state = PushState(sample_files / ".push_state.json")
 
@@ -28,6 +29,12 @@ class TestDeleteAfterPush:
         assert result.total == 3
         for parquet in sample_files.rglob("*.parquet"):
             assert not parquet.exists(), f"File should be deleted: {parquet}"
+        info_messages = [record.message for record in caplog.records if record.levelname == "INFO"]
+        upload_logs = [msg for msg in info_messages if "Uploaded:" in msg]
+        delete_logs = [msg for msg in info_messages if "Deleted local file" in msg]
+        assert len(upload_logs) == 3
+        assert len(delete_logs) == 3
+        assert any("s3://b/data/" in msg for msg in upload_logs)
 
     def test_delete_after_push_still_records_state(self, sample_files: Path):
         state_file = sample_files / ".push_state.json"
@@ -90,10 +97,11 @@ class TestDeleteAfterPush:
         for parquet in sample_files.rglob("*.parquet"):
             assert not parquet.exists()
 
-    def test_delete_after_push_partial_failure(self, sample_files: Path):
+    def test_delete_after_push_partial_failure(self, sample_files: Path, caplog):
         from push.core.errors import S3ClientError
         from typing import BinaryIO
 
+        caplog.set_level("ERROR")
         client = FakeS3Client(bucket="b", prefix="data")
         state = PushState(sample_files / ".push_state.json")
 
@@ -114,6 +122,37 @@ class TestDeleteAfterPush:
         assert result.uploaded >= 1
         assert result.failed == 1
         assert result.total == 3
+        error_messages = [record.message for record in caplog.records if record.levelname == "ERROR"]
+        assert any("Unexpected error uploading" in msg for msg in error_messages)
+        assert any("fail on second file" in msg for msg in error_messages)
+
+    def test_delete_after_push_multiple_failures(self, sample_files: Path, caplog):
+        from push.core.errors import S3ClientError
+        from typing import BinaryIO
+
+        caplog.set_level("ERROR")
+        client = FakeS3Client(bucket="b", prefix="data")
+        state = PushState(sample_files / ".push_state.json")
+
+        call_count = {"n": 0}
+
+        def failing_upload(key: str, fileobj: BinaryIO, **kwargs: object) -> dict:
+            call_count["n"] += 1
+            if call_count["n"] >= 2:
+                raise S3ClientError("fail on second and third")
+            return {"ETag": "abc123"}
+
+        client.upload_fileobj = failing_upload
+
+        config = UploadConfig(delete_after_push=True)
+        result = upload(sample_files, client, state, config)
+
+        assert result.uploaded == 1
+        assert result.failed == 2
+        assert result.total == 3
+        error_messages = [record.message for record in caplog.records if record.levelname == "ERROR"]
+        assert len(error_messages) == 2
+        assert all("Unexpected error uploading" in msg for msg in error_messages)
 
     def test_delete_after_push_upload_to_s3_correct(self, sample_files: Path):
         client = FakeS3Client(bucket="b", prefix="data")

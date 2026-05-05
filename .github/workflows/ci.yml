@@ -47,14 +47,17 @@ jobs:
       - name: Get changed source files
         id: changed
         run: |
+          # Fetch main to enable diff-based incremental mutation
+          git fetch origin main
           if [ "${{ github.event_name }}" = "pull_request" ]; then
-            FILES=$(git diff --name-only origin/${{ github.base_ref }}...HEAD \
-              | grep -E '^(extract|push)/.*\.py$' \
-              | grep -v '/tests/' \
-              | tr '\n' ' ')
+            BASE="origin/${{ github.base_ref }}"
           else
-            FILES=""
+            BASE="origin/main"
           fi
+          FILES=$(git diff --name-only "$BASE"...HEAD \
+            | grep -E '^(extract|push)/.*\.py$' \
+            | grep -v '/tests/' \
+            | tr '\n' ' ')
           echo "files=$FILES" >> $GITHUB_OUTPUT
           echo "Mutating: ${FILES:-'all files'}"
 

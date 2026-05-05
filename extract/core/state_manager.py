@@ -8,7 +8,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from .state import ERRORS_DIR, ERRORS_LOG, STATE_FILE
+from .state import ERRORS_DIR, STATE_FILE
 
 logger = logging.getLogger(__name__)
 

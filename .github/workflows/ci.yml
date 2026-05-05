@@ -200,4 +200,30 @@ jobs:
           python-version: "3.12"
           enable-cache: true
       - run: uv sync
-      - run: uv run pytest -v extract/tests/test_e2e.py extract/tests/test_e2e_errors.py extract/tests/test_e2e_retry.py push/tests/test_e2e_upload.py push/tests/test_e2e_client.py
+
+      - name: Get changed source files
+        id: changed
+        run: |
+          if [ "${{ github.event_name }}" = "push" ] && [ "${{ github.ref }}" = "refs/heads/main" ]; then
+            echo "files=FULL" >> $GITHUB_OUTPUT
+          else
+            git fetch origin main
+            if [ "${{ github.event_name }}" = "pull_request" ]; then
+              BASE="origin/${{ github.base_ref }}"
+            else
+              BASE="origin/main"
+            fi
+            FILES=$(git diff --name-only "$BASE"..HEAD \
+              | grep -E '^(extract|push)/.*\.py$' \
+              | grep -v '/tests/' \
+              | tr '\n' ' ')
+            echo "files=$FILES" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Run e2e tests (incremental)
+        if: steps.changed.outputs.files != '' && steps.changed.outputs.files != 'FULL'
+        run: uv run pytest -v extract/tests/test_e2e.py extract/tests/test_e2e_errors.py extract/tests/test_e2e_retry.py push/tests/test_e2e_upload.py push/tests/test_e2e_client.py
+
+      - name: Run full e2e tests (main push)
+        if: steps.changed.outputs.files == 'FULL'
+        run: uv run pytest -v extract/tests/test_e2e.py extract/tests/test_e2e_errors.py extract/tests/test_e2e_retry.py push/tests/test_e2e_upload.py push/tests/test_e2e_client.py

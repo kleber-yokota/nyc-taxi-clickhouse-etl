@@ -119,14 +119,15 @@ def pytest_sessionstart(session: pytest.Session) -> None:
     """Speed up push tests by caching checksums and mocking boto3.
 
     - Caches compute_sha256 results (reads file once, hashes in-memory)
-    - Mocks get_s3_client to avoid 2s boto3 session startup per test
+    - Mocks boto3.session.Session to avoid 2s boto3 startup per test
+      (mutations in client.py still tested — only session creation cost removed)
 
     Only patches push_module.compute_sha256 (where upload() imports it).
     test_checksum.py imports compute_sha256 directly from checksum_module,
     so it is unaffected and still tests the real function.
     """
     from push.core import push as push_module
-    from push.core import client as client_module
+    from unittest.mock import MagicMock
 
     # Cache compute_sha256
     def cached_sha256(file_path: Path) -> str:
@@ -139,22 +140,14 @@ def pytest_sessionstart(session: pytest.Session) -> None:
 
     push_module.compute_sha256 = cached_sha256
 
-    # Mock boto3 session — avoids 2s startup per test
-    # test_core_env.py tests config resolution, not actual S3 connection
-    def mock_get_s3_client(endpoint_url: str | None = None):
-        """Return a mock S3 client that implements S3Ops."""
-        from unittest.mock import MagicMock
+    # Mock boto3.session.Session — avoids 2s startup per test
+    # Mutations in client.py still tested (get_s3_client still called)
+    # Only the expensive Session() initialization is skipped
+    mock_session = MagicMock()
+    mock_session.client.return_value = MagicMock()
+    import boto3.session
 
-        mock = MagicMock()
-        mock.put_object.return_value = {"ETag": '"abc123"'}
-        mock.head_object.return_value = {"ContentLength": 100, "ETag": '"abc123"'}
-        mock.list_objects.return_value = {"Contents": []}
-        mock.delete_object.return_value = None
-        mock.create_bucket.return_value = None
-        mock.upload_fileobj.return_value = None
-        return mock
-
-    client_module.get_s3_client = mock_get_s3_client
+    boto3.session.Session = lambda *a, **k: mock_session
 
 
 def pytest_sessionfinish(session: pytest.Session, exitstatus: int) -> None:

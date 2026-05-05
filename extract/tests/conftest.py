@@ -66,7 +66,7 @@ def download_dir(tmp_path: Path) -> Path:
 
 # --- E2E VCR ---
 
-E2E_CASSETTE_DIR = "extract/tests/cassettes"
+E2E_CASSETTE_DIR = "extract/tests/downloaders/cassettes"
 
 e2e_vcr = vcr.VCR(
     cassette_library_dir=E2E_CASSETTE_DIR,

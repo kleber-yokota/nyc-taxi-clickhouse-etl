@@ -12,10 +12,6 @@ dependencies = [
     "minio>=7.2.20",
     "python-dotenv>=1.2.2",
     "requests>=2.31",
-]
-
-[project.optional-dependencies]
-test = [
     "pytest>=7.0",
     "hypothesis>=6.0",
     "mutmut>=3.0",

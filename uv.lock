@@ -574,19 +574,15 @@ version = "0.1.0"
 source = { editable = "." }
 dependencies = [
     { name = "astroid" },
-    { name = "boto3" },
-    { name = "minio" },
-    { name = "python-dotenv" },
-    { name = "requests" },
-]
-
-[package.optional-dependencies]
-test = [
     { name = "atheris" },
+    { name = "boto3" },
     { name = "coverage" },
     { name = "hypothesis" },
+    { name = "minio" },
     { name = "mutmut" },
     { name = "pytest" },
+    { name = "python-dotenv" },
+    { name = "requests" },
     { name = "responses" },
     { name = "vcrpy" },
 ]
@@ -594,19 +590,18 @@ test = [
 [package.metadata]
 requires-dist = [
     { name = "astroid", specifier = ">=4.1.2" },
-    { name = "atheris", marker = "extra == 'test'", specifier = ">=3.0" },
+    { name = "atheris", specifier = ">=3.0" },
     { name = "boto3", specifier = ">=1.43.2" },
-    { name = "coverage", marker = "extra == 'test'", specifier = ">=7.0" },
-    { name = "hypothesis", marker = "extra == 'test'", specifier = ">=6.0" },
+    { name = "coverage", specifier = ">=7.0" },
+    { name = "hypothesis", specifier = ">=6.0" },
     { name = "minio", specifier = ">=7.2.20" },
-    { name = "mutmut", marker = "extra == 'test'", specifier = ">=3.0" },
-    { name = "pytest", marker = "extra == 'test'", specifier = ">=7.0" },
+    { name = "mutmut", specifier = ">=3.0" },
+    { name = "pytest", specifier = ">=7.0" },
     { name = "python-dotenv", specifier = ">=1.2.2" },
     { name = "requests", specifier = ">=2.31" },
-    { name = "responses", marker = "extra == 'test'", specifier = ">=0.23" },
-    { name = "vcrpy", marker = "extra == 'test'", specifier = ">=5.0" },
+    { name = "responses", specifier = ">=0.23" },
+    { name = "vcrpy", specifier = ">=5.0" },
 ]
-provides-extras = ["test"]
 
 [[package]]
 name = "packaging"

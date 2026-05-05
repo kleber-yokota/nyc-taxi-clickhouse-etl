@@ -43,7 +43,23 @@ jobs:
           python-version: "3.12"
           enable-cache: true
       - run: uv sync
-      - run: uv run bash scripts/run_mutation_ci.sh 85
+
+      - name: Get changed source files
+        id: changed
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            FILES=$(git diff --name-only origin/${{ github.base_ref }}...HEAD \
+              | grep -E '^(extract|push)/.*\.py$' \
+              | grep -v '/tests/' \
+              | tr '\n' ' ')
+          else
+            FILES=""
+          fi
+          echo "files=$FILES" >> $GITHUB_OUTPUT
+          echo "Mutating: ${FILES:-'all files'}"
+
+      - name: Run mutation CI
+        run: uv run bash scripts/run_mutation_ci.sh 85 ${{ steps.changed.outputs.files }}
 
   quality:
     runs-on: ubuntu-latest

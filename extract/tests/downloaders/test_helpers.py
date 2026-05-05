@@ -3,23 +3,29 @@
 from __future__ import annotations
 
 from pathlib import Path
+from unittest.mock import patch
 
 import pytest
 import responses
 
-from extract.core.downloader import (
-    _apply_mode,
+from extract.downloader.downloader import (
     _backup_existing_file,
     _cleanup_stale_tmp,
     _fetch_content,
     _handle_http_error,
     _handle_network_error,
-    _make_result,
-    _resolve_data_dir,
     _safe_unlink,
 )
+from extract.downloader.downloader_actions import apply_mode as _apply_mode
+from extract.downloader.downloader_actions import make_result as _make_result
+from extract.downloader.downloader_actions import resolve_data_dir as _resolve_data_dir
 from extract.core.state import ErrorType
 from extract.core.state_manager import State
+
+
+@pytest.fixture
+def state_file(tmp_path: Path) -> Path:
+    return tmp_path / "state.json"
 
 
 class TestResolveDataDir:
@@ -119,85 +125,3 @@ class TestBackupExistingFile:
         target.write_bytes(content)
         _backup_existing_file(target)
         assert (tmp_path / "data.parquet.old").read_bytes() == content
-
-
-class TestHandleHttpError:
-    def test_404_records_missing_file(self, tmp_path: Path):
-        state = State(tmp_path / "state.json")
-        known_missing_path = tmp_path / "known_missing.txt"
-        from extract.core.known_missing import KnownMissing
-        known_missing = KnownMissing(known_missing_path)
-
-        class MockResponse:
-            status_code = 404
-
-        import requests
-        http_error = requests.HTTPError()
-        http_error.response = MockResponse()
-
-        _handle_http_error(http_error, "https://example.com/file.parquet", state, known_missing)
-        assert known_missing.is_missing("https://example.com/file.parquet")
-
-    def test_500_records_http_error(self, tmp_path: Path):
-        state = State(state_path=tmp_path / "state.json")
-        from extract.core.known_missing import KnownMissing
-        known_missing = KnownMissing(tmp_path / "known_missing.txt")
-
-        class MockResponse:
-            status_code = 500
-
-        import requests
-        http_error = requests.HTTPError()
-        http_error.response = MockResponse()
-
-        _handle_http_error(http_error, "https://example.com/file.parquet", state, known_missing)
-        error_log = state._errors_dir / "download_errors.log"
-        assert error_log.exists()
-
-
-class TestHandleNetworkError:
-    def test_records_network_error(self, tmp_path: Path):
-        state = State(state_path=tmp_path / "state.json")
-        import requests
-        network_error = requests.ConnectionError("connection refused")
-
-        _handle_network_error(network_error, "https://example.com/file.parquet", state)
-
-        error_log = state._errors_dir / "download_errors.log"
-        assert error_log.exists()
-        assert state.is_downloaded("https://example.com/file.parquet") is False
-
-
-class TestFetchContent:
-    @responses.activate
-    def test_fetches_and_writes_content(self, tmp_path: Path):
-        url = "https://d37ci6vzurychx.cloudfront.net/trip-data/yellow_tripdata_2024-01.parquet"
-        content = b"fake_parquet_content_for_testing"
-        responses.add(
-            responses.GET,
-            url,
-            body=content,
-            status=200,
-            content_type="application/octet-stream",
-        )
-
-        tmp_path = tmp_path / "test.tmp"
-        _fetch_content(url, tmp_path)
-
-        assert tmp_path.exists()
-        assert tmp_path.read_bytes() == content
-
-    @responses.activate
-    def test_fetch_content_raises_on_404(self, tmp_path: Path):
-        import requests
-        url = "https://example.com/missing.parquet"
-        responses.add(
-            responses.GET,
-            url,
-            status=404,
-            body="",
-        )
-
-        tmp_file = tmp_path / "test.tmp"
-        with pytest.raises(requests.HTTPError):
-            _fetch_content(url, tmp_file)

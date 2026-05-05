@@ -8,7 +8,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from .state import ERRORS_DIR, ERRORS_LOG, STATE_FILE
+from .state import ERRORS_DIR, STATE_FILE
 
 logger = logging.getLogger(__name__)
 
@@ -102,8 +102,8 @@ class State:
         if path.exists():
             try:
                 with open(path, "r") as f:
-                    data = json.load(f)
-                self.checksums = data.get("checksums", {})
+                    state_data = json.load(f)
+                self.checksums = state_data.get("checksums", {})
             except (json.JSONDecodeError, KeyError):
                 self.checksums = {}
         self._ensure_dirs()

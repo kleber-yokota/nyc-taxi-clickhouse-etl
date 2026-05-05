@@ -1,7 +1,6 @@
 """Fuzz tests for state and known_missing using atheris."""
 
 import sys
-import tempfile
 
 import atheris
 

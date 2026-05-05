@@ -45,5 +45,5 @@ class InterruptibleDownload:
 
     def __exit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
         """Exit context manager, cleaning up on exception."""
-        if exc_type is not None:
+        if exc_type is not None:  # noqa: ARG002
             self.cleanup()

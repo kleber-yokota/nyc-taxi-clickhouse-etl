@@ -7,13 +7,9 @@ from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
 from pathlib import Path
-from typing import Tuple
-
 STATE_FILE = "data/.download_state.json"
 ERRORS_DIR = "data/errors"
-ERRORS_LOG = "data/errors/download_errors.log"
 
-DOWNLOAD_TIMEOUT = 300
 KNOWN_MISSING_FILE = "data/known_missing.txt"
 CDN_BASE = "https://d37ci6vzurychx.cloudfront.net/trip-data"
 DATA_TYPES = ["fhv", "fhvhv", "green", "yellow"]
@@ -60,16 +56,6 @@ class ErrorType(Enum):
     CHECKSUM_MISMATCH = "checksum_mismatch"
     CORRUPT_FILE = "corrupt_file"
     UNKNOWN = "unknown"
-
-
-@dataclass
-class DownloadSummary:
-    """Summary of a download run."""
-
-    downloaded: int = 0
-    skipped: int = 0
-    failed: int = 0
-    total: int = 0
 
 
 @dataclass(frozen=True)

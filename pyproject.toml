@@ -33,8 +33,20 @@ deadline = 2000
 [tool.setuptools.packages.find]
 exclude = ["mutants*", "data*"]
 
+[tool.vulture]
+ignore_names = [
+    "exc_tb",
+    "exc_val",
+    "fake_parquet_content",
+    "mock_200",
+    "mock_404",
+    "mock_500",
+    "side_effect",
+    "dirs",
+]
+
 [tool.mutmut]
-paths_to_mutate = ["push"]
+paths_to_mutate = ["extract"]
 do_not_mutate = ["*/tests/*", "*/conftest.py", "*/test_*.py", "*/__init__.py"]
-runner = "python -m pytest push/tests/test_checksum.py push/tests/test_core_env.py push/tests/test_state.py push/tests/test_core_upload.py push/tests/test_delete_after.py push/tests/test_filter.py -q"
+runner = "python -m pytest extract/tests/downloaders/ -q --ignore=extract/tests/downloaders/test_fuzz.py --ignore=extract/tests/downloaders/test_e2e.py --ignore=extract/tests/downloaders/test_e2e_errors.py --ignore=extract/tests/downloaders/test_e2e_retry.py"
 exclude_dirs = ["__pycache__", ".venv", "mutants"]

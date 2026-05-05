@@ -7,9 +7,9 @@ from pathlib import Path
 
 import vcr
 
-from extract.core.downloader import run
+from extract.downloader.downloader import run
 
-CASSETTE_DIR = "extract/tests/cassettes"
+CASSETTE_DIR = "extract/tests/downloaders/cassettes"
 
 e2e_vcr = vcr.VCR(
     cassette_library_dir=CASSETTE_DIR,

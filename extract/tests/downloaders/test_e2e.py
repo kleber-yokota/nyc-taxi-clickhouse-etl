@@ -7,10 +7,10 @@ from pathlib import Path
 
 import vcr
 
-from extract.core.downloader import run
+from extract.downloader.downloader import run
 from extract.core.state_manager import State
 
-CASSETTE_DIR = "extract/tests/cassettes"
+CASSETTE_DIR = "extract/tests/downloaders/cassettes"
 
 e2e_vcr = vcr.VCR(
     cassette_library_dir=CASSETTE_DIR,
@@ -122,6 +122,6 @@ class TestTmpCleaned:
             max_entries=3,
         )
 
-        for root, dirs, files in download_dir.walk():
+        for _, _, files in download_dir.walk():
             for f in files:
                 assert not str(f).endswith(".download.tmp")

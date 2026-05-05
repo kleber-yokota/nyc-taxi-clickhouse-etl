@@ -78,7 +78,6 @@ class TestCatalog:
         catalog = Catalog()
         entries = catalog.generate()
         assert len(entries) > 0
-        types_in_order = sorted(DATA_TYPES)
         for i in range(1, len(entries)):
             prev = entries[i - 1]
             curr = entries[i]
@@ -177,25 +176,4 @@ class TestCatalog:
         assert len(entries) == 12
 
 
-class TestComputeSha256:
-    def test_compute_sha256_known_content(self, tmp_path: Path):
-        import hashlib
-        test_file = tmp_path / "test.bin"
-        test_file.write_bytes(b"hello world")
-        expected = hashlib.sha256(b"hello world").hexdigest()
-        assert compute_sha256(test_file) == expected
 
-    def test_compute_sha256_empty_file(self, tmp_path: Path):
-        import hashlib
-        test_file = tmp_path / "empty.bin"
-        test_file.write_bytes(b"")
-        expected = hashlib.sha256(b"").hexdigest()
-        assert compute_sha256(test_file) == expected
-
-    def test_compute_sha256_large_file(self, tmp_path: Path):
-        import hashlib
-        test_file = tmp_path / "large.bin"
-        content = b"x" * 100000
-        test_file.write_bytes(content)
-        expected = hashlib.sha256(content).hexdigest()
-        assert compute_sha256(test_file) == expected

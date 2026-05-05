@@ -222,8 +222,19 @@ jobs:
 
       - name: Run e2e tests (incremental)
         if: steps.changed.outputs.files != '' && steps.changed.outputs.files != 'FULL'
-        run: uv run pytest -v extract/tests/test_e2e.py extract/tests/test_e2e_errors.py extract/tests/test_e2e_retry.py push/tests/test_e2e_upload.py push/tests/test_e2e_client.py
+        run: |
+          MODULES=$(echo "${{ steps.changed.outputs.files }}" | tr ' ' '\n' | cut -d/ -f1 | sort -u | tr '\n' ' ')
+          E2E_FILES=""
+          for mod in $MODULES; do
+            if [ -d "${mod}/tests" ]; then
+              FOUND=$(find "${mod}/tests" -name "test_e2e*.py" -type f | tr '\n' ' ')
+              E2E_FILES+="$FOUND"
+            fi
+          done
+          if [ -n "$E2E_FILES" ]; then
+            uv run pytest -v $E2E_FILES
+          fi
 
       - name: Run full e2e tests (main push)
         if: steps.changed.outputs.files == 'FULL'
-        run: uv run pytest -v extract/tests/test_e2e.py extract/tests/test_e2e_errors.py extract/tests/test_e2e_retry.py push/tests/test_e2e_upload.py push/tests/test_e2e_client.py
+        run: uv run pytest -v extract/tests/ push/tests/ -k "e2e"

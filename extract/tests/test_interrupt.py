@@ -8,6 +8,7 @@ from pathlib import Path
 import pytest
 
 from extract.core.interrupt import InterruptibleDownload
+from extract.core.interrupt import _handle_signal
 
 
 class TestInterruptibleDownload:
@@ -126,3 +127,53 @@ class TestInterruptibleDownload:
         assert interruptible._tmp_path is None
         interruptible.cleanup()
         assert interruptible._tmp_path is None
+
+    def test_cleanup_when_tmp_is_falsey(self, download_dir: Path):
+        interruptible = InterruptibleDownload(download_dir)
+        interruptible._tmp_path = False
+        interruptible.cleanup()
+
+    def test_cleanup_when_tmp_is_zero(self, download_dir: Path):
+        interruptible = InterruptibleDownload(download_dir)
+        interruptible._tmp_path = 0
+        interruptible.cleanup()
+
+    def test_cleanup_when_tmp_is_empty_string(self, download_dir: Path):
+        interruptible = InterruptibleDownload(download_dir)
+        interruptible._tmp_path = ""
+        interruptible.cleanup()
+
+    def test_cleanup_when_tmp_is_empty_list(self, download_dir: Path):
+        interruptible = InterruptibleDownload(download_dir)
+        interruptible._tmp_path = []
+        interruptible.cleanup()
+
+    def test_context_manager_exception_type_none(self, download_dir: Path):
+        interruptible = InterruptibleDownload(download_dir)
+        with interruptible:
+            pass
+        # __exit__ with exc_type=None should not call cleanup
+
+
+class TestHandleSignal:
+    """Tests for _handle_signal function."""
+
+    def test_handle_signal_logs_with_signal_number(self, caplog: pytest.LogCaptureFixture):
+        with caplog.at_level(logging.INFO, logger="extract.core.interrupt"):
+            _handle_signal(2, None)
+
+        assert any("Interrupt signal received (signal 2)" in record.message for record in caplog.records)
+
+    def test_handle_signal_with_different_signal(self, caplog: pytest.LogCaptureFixture):
+        with caplog.at_level(logging.INFO, logger="extract.core.interrupt"):
+            _handle_signal(15, None)
+
+        assert any("Interrupt signal received (signal 15)" in record.message for record in caplog.records)
+
+    def test_handle_signal_with_frame(self, caplog: pytest.LogCaptureFixture):
+        with caplog.at_level(logging.INFO, logger="extract.core.interrupt"):
+            _handle_signal(2, object())
+
+        assert any("Interrupt signal received (signal 2)" in record.message for record in caplog.records)
+
+

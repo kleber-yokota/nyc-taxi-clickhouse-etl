@@ -34,7 +34,7 @@ deadline = 2000
 exclude = ["mutants*", "data*"]
 
 [tool.mutmut]
-paths_to_mutate = ["push"]
+paths_to_mutate = ["extract"]
 do_not_mutate = ["*/tests/*", "*/conftest.py", "*/test_*.py", "*/__init__.py"]
-runner = "python -m pytest push/tests/test_checksum.py push/tests/test_core_env.py push/tests/test_state.py push/tests/test_core_upload.py push/tests/test_delete_after.py push/tests/test_filter.py -q"
+runner = "python -m pytest extract/tests/ -q --ignore=extract/tests/test_fuzz.py --ignore=extract/tests/test_e2e.py"
 exclude_dirs = ["__pycache__", ".venv", "mutants"]

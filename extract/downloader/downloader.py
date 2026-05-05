@@ -12,6 +12,7 @@ from extract.core.state_manager import State
 from extract.downloader.downloader_actions import apply_mode
 from extract.downloader.downloader_actions import log_download_complete
 from extract.downloader.downloader_actions import make_result
+from extract.downloader.downloader_actions import resolve_data_dir
 from extract.downloader.downloader_download import download_and_verify
 from extract.downloader.downloader_download import handle_download_error
 from extract.downloader.downloader_download import _fetch_content  # noqa: F401
@@ -47,7 +48,7 @@ def run(
     Returns:
         Dict with keys: downloaded, skipped, failed, total.
     """
-    resolved_dir = _resolve_data_dir(data_dir)
+    resolved_dir = resolve_data_dir(data_dir)
     catalog = Catalog(types=types, from_year=from_year, to_year=to_year, max_entries=max_entries)
     state = State(resolved_dir / ".download_state.json")
     apply_mode(state, mode)
@@ -67,18 +68,6 @@ def run(
     result = make_result(downloaded, skipped, failed, len(entries))
     log_download_complete(result)
     return result
-
-
-def _resolve_data_dir(data_dir: str | Path | None) -> Path:
-    """Resolve the data directory path.
-
-    Args:
-        data_dir: Optional path string or Path object.
-
-    Returns:
-        Resolved Path object.
-    """
-    return Path(data_dir) if data_dir else Path("data")
 
 
 def _execute_download_loop(
@@ -132,6 +121,6 @@ _download_entry = download_and_verify
 _handle_download_error = handle_download_error
 _make_result = make_result
 _process_entry = process_entry
-_resolve_data_dir = _resolve_data_dir
+_resolve_data_dir = resolve_data_dir
 _safe_unlink = safe_unlink
 should_skip_download = should_skip_download

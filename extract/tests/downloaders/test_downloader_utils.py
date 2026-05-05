@@ -9,11 +9,11 @@ import pytest
 from extract.downloader.downloader import (
     _backup_existing_file,
     _cleanup_stale_tmp,
-    _resolve_data_dir,
     _safe_unlink,
 )
 from extract.downloader.downloader_actions import apply_mode as _apply_mode
 from extract.downloader.downloader_actions import make_result as _make_result
+from extract.downloader.downloader_actions import resolve_data_dir as _resolve_data_dir
 from extract.core.state_manager import State
 
 

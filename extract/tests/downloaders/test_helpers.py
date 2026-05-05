@@ -14,11 +14,11 @@ from extract.downloader.downloader import (
     _fetch_content,
     _handle_http_error,
     _handle_network_error,
-    _resolve_data_dir,
     _safe_unlink,
 )
 from extract.downloader.downloader_actions import apply_mode as _apply_mode
 from extract.downloader.downloader_actions import make_result as _make_result
+from extract.downloader.downloader_actions import resolve_data_dir as _resolve_data_dir
 from extract.core.state import ErrorType
 from extract.core.state_manager import State
 

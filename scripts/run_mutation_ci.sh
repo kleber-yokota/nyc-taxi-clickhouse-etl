@@ -1,91 +1,99 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Generic mutation testing CI script
-# Auto-discovers modules and runs mutmut on each one.
+# Incremental mutation testing CI script
+# Only mutates modules containing changed source files.
 #
 # Usage:
-#   ./scripts/run_mutation_ci.sh [threshold]
+#   ./scripts/run_mutation_ci.sh [threshold] [changed_files...]
 #
 # Arguments:
-#   threshold  Minimum mutation score percentage (default: 85)
+#   threshold        Minimum mutation score percentage (default: 85)
+#   changed_files... Space-separated list of changed .py files (not in tests/)
+#                    If empty, all modules are mutated (main push).
 
 THRESHOLD="${1:-85}"
+shift || true
 
-echo "=== Mutation Testing CI ==="
+CHANGED_FILES=("$@")
+
+echo "=== Incremental Mutation Testing CI ==="
 echo "Threshold: ${THRESHOLD}%"
 echo ""
 
-# Discover modules: directories that contain a core/ subdirectory
-MODULES=()
+# Discover all modules
+ALL_MODULES=()
 for dir in */; do
     dir="${dir%/}"
     if [ -d "${dir}/core" ] && [ ! -d "mutants/${dir}" ]; then
-        MODULES+=("$dir")
+        ALL_MODULES+=("$dir")
     fi
 done
 
-if [ ${#MODULES[@]} -eq 0 ]; then
+if [ ${#ALL_MODULES[@]} -eq 0 ]; then
     echo "No modules found (directories with core/ subdir, excluding mutants/)"
     exit 1
 fi
 
-echo "Discovered modules: ${MODULES[*]}"
+# Determine which modules to mutate
+if [ ${#CHANGED_FILES[@]} -eq 0 ]; then
+    echo "No file filter — mutating all modules (main push)"
+    MODULES=("${ALL_MODULES[@]}")
+else
+    # Map changed source files to their parent modules
+    declare -A MODULE_MAP
+    for f in "${CHANGED_FILES[@]}"; do
+        # Extract top-level module (e.g. "extract/foo.py" -> "extract")
+        module="${f%%/*}"
+        # Only care about known modules
+        for m in "${ALL_MODULES[@]}"; do
+            if [ "$module" = "$m" ]; then
+                MODULE_MAP["$m"]=1
+                break
+            fi
+        done
+    done
+
+    MODULES=("${!MODULE_MAP[@]}")
+
+    if [ ${#MODULES[@]} -eq 0 ]; then
+        echo "No Python source files changed in any module"
+        echo "PASS: Nothing to mutate"
+        exit 0
+    fi
+
+    echo "Changed files: ${CHANGED_FILES[*]}"
+    echo "Affected modules: ${MODULES[*]}"
+fi
+
 echo ""
 
 FAILED_MODULES=()
-ORIGINAL_PYPROJECT=""
-
-cleanup_pyproject() {
-    if [ -n "$ORIGINAL_PYPROJECT" ]; then
-        echo "$ORIGINAL_PYPROJECT" > pyproject.toml
-    fi
-}
 
 for module in "${MODULES[@]}"; do
     echo "=============================="
     echo "Module: ${module}"
     echo "=============================="
 
-    # Clean previous mutants cache
-    rm -rf mutants/ .mutmut-cache/
+    rm -rf mutants/
 
-    # Discover test files for this module
     TEST_DIR="${module}/tests/"
     if [ ! -d "$TEST_DIR" ]; then
-        echo "  WARNING: No tests/ directory in ${module}, skipping"
+        echo "  WARNING: No tests/ directory, skipping"
         continue
     fi
 
-    # Find test files (test_*.py), excluding __init__.py and conftest.py
-    TEST_FILES=()
+    # Find unit test files
+    UNIT_TESTS=()
     while IFS= read -r -d '' f; do
         basename_f=$(basename "$f")
-        if [[ "$basename_f" == test_*.py ]]; then
-            TEST_FILES+=("$f")
-        fi
-    done < <(find "$TEST_DIR" -name "test_*.py" -type f -print0)
-
-    if [ ${#TEST_FILES[@]} -eq 0 ]; then
-        echo "  WARNING: No test files found in ${TEST_DIR}, skipping"
-        continue
-    fi
-
-   echo "  Test files: ${TEST_FILES[*]}"
-
-    # Filter test files: only unit tests (not fuzz, e2e, properties, helpers, mutant_killing)
-    UNIT_TESTS=()
-    for tf in "${TEST_FILES[@]}"; do
-        basename_tf=$(basename "$tf")
-        case "$basename_tf" in
+        case "$basename_f" in
             test_fuzz.py|test_e2e*.py|test_properties.py|test_helpers.py|test_mutant_killing.py)
-                continue
-                ;;
-            *)
-                UNIT_TESTS+=("$tf")
-                ;;
+                continue ;;
+            test_*.py)
+                UNIT_TESTS+=("$f") ;;
         esac
-    done
+    done < <(find "$TEST_DIR" -name "test_*.py" -type f -print0)
 
     if [ ${#UNIT_TESTS[@]} -eq 0 ]; then
         echo "  WARNING: No unit test files found, skipping"
@@ -95,10 +103,9 @@ for module in "${MODULES[@]}"; do
     echo "  Unit tests: ${UNIT_TESTS[*]}"
     TEST_CMD="python -m pytest ${UNIT_TESTS[*]} -q"
 
-    # Save original pyproject.toml and create temp config for this module
+    # Save original pyproject.toml
     ORIGINAL_PYPROJECT=$(cat pyproject.toml)
 
-    # Create temporary mutmut config
     cat > pyproject.toml <<PYEOF
 [build-system]
 requires = ["setuptools>=61.0"]
@@ -116,31 +123,29 @@ runner = "${TEST_CMD}"
 exclude_dirs = ["__pycache__", ".venv", "mutants"]
 PYEOF
 
-    # Run mutmut with parallel execution
-    # --max-children 4: run 4 mutants in parallel (4x+ speedup)
     echo "  Running mutmut (parallel)..."
     MUTMUT_OUTPUT=$(mktemp)
-    if ! mutmut run --max-children 4 >"$MUTMUT_OUTPUT" 2>&1; then
+    if ! mutmut run --max-children 8 >"$MUTMUT_OUTPUT" 2>&1; then
         echo "  ERROR: mutmut run failed for ${module}"
         cat "$MUTMUT_OUTPUT"
         rm -f "$MUTMUT_OUTPUT"
-        cleanup_pyproject
+        rm -f pyproject.toml
+        echo "$ORIGINAL_PYPROJECT" > pyproject.toml
         FAILED_MODULES+=("$module")
         continue
     fi
-    echo "  Done (output suppressed, see GitHub Actions log for details)"
     rm -f "$MUTMUT_OUTPUT"
 
-    # Export CI stats (junitxml is faster than export-cicd-stats)
-    mutmut junitxml > mutants/mutmut-results.xml 2>/dev/null || true
     mutmut export-cicd-stats 2>/dev/null || true
 
     # Restore original pyproject.toml
-    cleanup_pyproject
+    rm -f pyproject.toml
+    echo "$ORIGINAL_PYPROJECT" > pyproject.toml
 
     # Calculate and check score
-    SCORE_OUTPUT=$(python3 -c "
-import json, sys
+    if [ -f "mutants/mutmut-cicd-stats.json" ]; then
+        SCORE_OUTPUT=$(python3 -c "
+import json
 with open('mutants/mutmut-cicd-stats.json') as f:
     d = json.load(f)
     killed = d['killed']
@@ -149,14 +154,16 @@ with open('mutants/mutmut-cicd-stats.json') as f:
     print(f'{score:.1f}')
     print(f'  Killed: {killed}/{total}')
 ")
-
-    SCORE=$(echo "$SCORE_OUTPUT" | head -1)
-    DETAILS=$(echo "$SCORE_OUTPUT" | tail -n +2)
+        SCORE=$(echo "$SCORE_OUTPUT" | head -1)
+        DETAILS=$(echo "$SCORE_OUTPUT" | tail -n +2)
+    else
+        SCORE="0.0"
+        DETAILS="  Killed: 0/0 (no mutants generated)"
+    fi
 
     echo "  Mutation score: ${SCORE}%"
     echo "$DETAILS"
 
-    # Check threshold
     BELOW=$(python3 -c "print(1 if float('${SCORE}') < ${THRESHOLD} else 0)")
     if [ "$BELOW" -eq 1 ]; then
         echo "  FAIL: Score ${SCORE}% is below ${THRESHOLD}% threshold"

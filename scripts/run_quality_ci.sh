@@ -5,31 +5,59 @@ set -euo pipefail
 # Auto-discovers modules and runs coverage, radon, xenon, cohesion, vulture.
 #
 # Usage:
-#   ./scripts/run_quality_ci.sh
+#   ./scripts/run_quality_ci.sh [changed_files...]
 #
-# Thresholds (from New.md):
-#   coverage ≥ 85%
-#   CC (cyclomatic complexity) < 10
-#   MI (maintainability index) > 70
+# Arguments:
+#   changed_files... Space-separated list of changed .py files (not in tests/)
+#                    If empty, all modules are checked.
+
+CHANGED_FILES=("$@")
 
 echo "=== Quality Checks CI ==="
 echo ""
 
-# Discover modules: directories that contain a core/ subdirectory
-MODULES=()
+# Discover all modules
+ALL_MODULES=()
 for dir in */; do
     dir="${dir%/}"
     if [ -d "${dir}/core" ] && [ ! -d "mutants/${dir}" ]; then
-        MODULES+=("$dir")
+        ALL_MODULES+=("$dir")
     fi
 done
 
-if [ ${#MODULES[@]} -eq 0 ]; then
+if [ ${#ALL_MODULES[@]} -eq 0 ]; then
     echo "No modules found (directories with core/ subdir, excluding mutants/)"
     exit 1
 fi
 
-echo "Discovered modules: ${MODULES[*]}"
+# Determine which modules to check
+if [ ${#CHANGED_FILES[@]} -eq 0 ]; then
+    echo "No file filter — checking all modules"
+    MODULES=("${ALL_MODULES[@]}")
+else
+    declare -A MODULE_MAP
+    for f in "${CHANGED_FILES[@]}"; do
+        module="${f%%/*}"
+        for m in "${ALL_MODULES[@]}"; do
+            if [ "$module" = "$m" ]; then
+                MODULE_MAP["$m"]=1
+                break
+            fi
+        done
+    done
+
+    MODULES=("${!MODULE_MAP[@]}")
+
+    if [ ${#MODULES[@]} -eq 0 ]; then
+        echo "No Python source files changed in any module"
+        echo "PASS: Nothing to check"
+        exit 0
+    fi
+
+    echo "Changed files: ${CHANGED_FILES[*]}"
+    echo "Affected modules: ${MODULES[*]}"
+fi
+
 echo ""
 
 FAILED_MODULES=()

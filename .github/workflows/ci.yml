@@ -54,12 +54,16 @@ jobs:
           else
             BASE="origin/main"
           fi
-          FILES=$(git diff --name-only "$BASE"...HEAD \
+          FILES=$(git diff --name-only "$BASE"..HEAD \
             | grep -E '^(extract|push)/.*\.py$' \
             | grep -v '/tests/' \
             | tr '\n' ' ')
+          if [ -z "$FILES" ]; then
+            echo "No Python source files changed — skipping mutation"
+          else
+            echo "Mutating: $FILES"
+          fi
           echo "files=$FILES" >> $GITHUB_OUTPUT
-          echo "Mutating: ${FILES:-'all files'}"
 
       - name: Run mutation CI
         run: uv run bash scripts/run_mutation_ci.sh 85 ${{ steps.changed.outputs.files }}

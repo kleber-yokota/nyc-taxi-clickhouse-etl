@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import json
+from unittest.mock import patch
+
 import pytest
 
 from etl.manifest import add_entry, load, save
@@ -61,6 +63,27 @@ class TestLoad:
         manifest_path.write_text('"not a dict"')
 
         with pytest.raises(PushManifestError, match="must be a dict"):
+            load(tmp_data_dir)
+
+    def test_load_opens_file_with_read_mode(self, tmp_data_dir: Path) -> None:
+        manifest_path = tmp_data_dir / ".push_manifest.json"
+        manifest_path.write_text("{}")
+
+        with patch("builtins.open", return_value=iter([])) as mock_open:
+            try:
+                load(tmp_data_dir)
+            except Exception:
+                pass
+
+            assert mock_open.called
+            call_args = mock_open.call_args
+            assert call_args[0][1] == "r"
+
+    def test_raises_on_non_dict_with_type_name(self, tmp_data_dir: Path) -> None:
+        manifest_path = tmp_data_dir / ".push_manifest.json"
+        manifest_path.write_text("[1, 2, 3]")
+
+        with pytest.raises(PushManifestError, match="got list"):
             load(tmp_data_dir)
 
 

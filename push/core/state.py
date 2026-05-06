@@ -19,6 +19,7 @@ class PushResult:
         failed: Number of files that failed to upload.
         total: Total number of files processed.
         uploaded_files: List of relative file paths that were uploaded.
+        uploaded_checksums: Mapping of relative file paths to their SHA-256 checksums.
     """
 
     uploaded: int = 0
@@ -26,6 +27,7 @@ class PushResult:
     failed: int = 0
     total: int = 0
     uploaded_files: list[str] = field(default_factory=list)
+    uploaded_checksums: dict[str, str] = field(default_factory=dict)
 
 
 @dataclass(frozen=True)

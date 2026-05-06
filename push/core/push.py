@@ -49,13 +49,16 @@ def upload(
     skipped = 0
     failed = 0
     uploaded_files: list[str] = []
+    uploaded_checksums: dict[str, str] = {}
 
     for local_path in files:
         try:
-            status = _upload_one(local_path, data_dir, client, state, config)
+            status, checksum = _upload_one(local_path, data_dir, client, state, config)
             if status == "uploaded":
                 uploaded += 1
-                uploaded_files.append(str(local_path.relative_to(data_dir)))
+                rel = str(local_path.relative_to(data_dir))
+                uploaded_files.append(rel)
+                uploaded_checksums[rel] = checksum
             elif status == "skipped":
                 skipped += 1
         except Exception as e:
@@ -69,6 +72,7 @@ def upload(
         failed=failed,
         total=total,
         uploaded_files=uploaded_files,
+        uploaded_checksums=uploaded_checksums,
     )
 
 
@@ -78,7 +82,7 @@ def _upload_one(
     client: S3Client,
     state: PushState,
     config: UploadConfig,
-) -> str:
+) -> tuple[str, str]:
     """Upload a single file to S3.
 
     Args:
@@ -89,14 +93,14 @@ def _upload_one(
         config: Upload configuration.
 
     Returns:
-        "uploaded" or "skipped".
+        Tuple of ("uploaded"/"skipped", checksum).
     """
     rel_path = str(local_path.relative_to(data_dir))
     checksum = compute_sha256(local_path)
 
     if _should_skip(local_path, checksum, state, config.overwrite):
         logger.debug("Skipping (already pushed): %s", rel_path)
-        return "skipped"
+        return "skipped", checksum
 
     s3_key = client.build_key(rel_path)
     _do_upload(local_path, s3_key, client)
@@ -105,7 +109,7 @@ def _upload_one(
     if config.delete_after_push:
         local_path.unlink()
         logger.info("Deleted local file after push: %s", rel_path)
-    return "uploaded"
+    return "uploaded", checksum
 
 
 def _should_skip(

@@ -10,6 +10,21 @@ PARQUET_EXTENSION = ".parquet"
 
 
 @dataclass(frozen=True)
+class PushedEntry:
+    """Record of a single file pushed to S3.
+
+    Args:
+        rel_path: Relative path from data_dir (e.g. 'yellow/file.parquet').
+        s3_key: Full S3 key (e.g. 'data/yellow/file.parquet').
+        checksum: SHA-256 hex digest of the file.
+    """
+
+    rel_path: str
+    s3_key: str
+    checksum: str
+
+
+@dataclass(frozen=True)
 class PushResult:
     """Result of a push operation.
 
@@ -19,6 +34,7 @@ class PushResult:
         failed: Number of files that failed to upload.
         total: Total number of files processed.
         uploaded_files: List of relative file paths that were uploaded.
+        uploaded_entries: List of PushedEntry records for uploaded files.
     """
 
     uploaded: int = 0
@@ -26,6 +42,7 @@ class PushResult:
     failed: int = 0
     total: int = 0
     uploaded_files: list[str] = field(default_factory=list)
+    uploaded_entries: list[PushedEntry] = field(default_factory=list)
 
 
 @dataclass(frozen=True)

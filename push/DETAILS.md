@@ -105,9 +105,10 @@ class PushResult:
     skipped: int = 0
     failed: int = 0
     total: int = 0
+    uploaded_files: list[str] = field(default_factory=list)
 ```
 
-Immutable result of a push operation.
+Immutable result of a push operation. `uploaded_files` contains the relative paths of files that were successfully uploaded to S3. This list is written to `.push_manifest.json` for cross-module coordination with `extract`.
 
 ---
 

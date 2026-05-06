@@ -13,9 +13,9 @@ Orchestrates downloading NYC TLC trip record parquet files from the public CDN, 
 ## Main flow
 
 ```
-run() → Catalog.generate() → State() → KnownMissing()
+run() → Catalog.generate() → State() → KnownMissing() → load_push_manifest()
   → for each entry:
-    → should_skip_download() → check state + known_missing
+    → should_skip_download() → check state + known_missing + push_manifest
     → download_and_verify() → HTTP fetch → checksum verify → save state
     → process_entry() → update counters
   → log_download_complete() → return result dict
@@ -28,6 +28,16 @@ from extract.downloader.downloader import run
 
 result = run(types=["yellow"], from_year=2024, to_year=2024, mode="incremental")
 # result: {"downloaded": 12, "skipped": 3, "failed": 1, "total": 16}
+```
+
+### Skip files already in S3
+
+```python
+from extract.downloader.downloader import run
+
+# Automatically reads data/.push_manifest.json to skip files already uploaded to S3
+result = run(types=["yellow"], from_year=2024, to_year=2024, mode="incremental")
+# If yellow_tripdata_2024-01.parquet is already in S3, it is skipped
 ```
 
 ---
@@ -58,6 +68,7 @@ extract/downloader/
 | `data_dir` | `str \| Path \| None` | Result dict | `{"downloaded": int, ...}` |
 | `types` | `list[str] \| None` | State file | `.download_state.json` |
 | `mode` | `"incremental" \| "full"` | Error log | `errors/download_errors.log` |
+| `push_manifest` | `dict \| None` | Downloaded files | `data/{type}/{filename}.parquet` |
 
 ---
 
@@ -69,6 +80,7 @@ extract/downloader/
 - `extract.core.state_manager` — State
 - `extract.core.known_missing` — KnownMissing
 - `extract.core.interrupt` — InterruptibleDownload
+- `extract.core.push_manifest` — Push manifest access (read-only)
 
 ---
 

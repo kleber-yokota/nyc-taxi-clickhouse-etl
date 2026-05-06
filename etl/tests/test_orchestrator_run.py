@@ -1,18 +1,27 @@
-"""Tests for Orchestrator.run() — full pipeline flow."""
+"""Tests for Orchestrator.run() -- full pipeline flow with fakes."""
 
 from __future__ import annotations
 
 from pathlib import Path
-from unittest.mock import MagicMock, patch
-
-import pytest
 
 from etl.orchestrator import ETLConfig, Orchestrator
+from push.core.push_manifest import S3Object
 from push.core.state import PushedEntry, PushResult
 
+from .conftest import FakeExtract, FakePush, FakeS3List
 
-def _make_push_result(uploaded_entries: list[PushedEntry] | None = None) -> PushResult:
-    """Create a mock PushResult for testing."""
+
+def _make_push_result(
+    uploaded_entries: list[PushedEntry] | None = None,
+) -> PushResult:
+    """Create a mock PushResult for testing.
+
+    Args:
+        uploaded_entries: List of PushedEntry records.
+
+    Returns:
+        PushResult instance.
+    """
     return PushResult(
         uploaded=2,
         skipped=0,
@@ -26,27 +35,27 @@ def _make_push_result(uploaded_entries: list[PushedEntry] | None = None) -> Push
 class TestRunIncrementalFlow:
     """Tests for incremental mode pipeline flow."""
 
-    @patch("etl.orchestrator.load", return_value={})
-    @patch("etl.orchestrator.list_s3_objects", return_value=[])
-    @patch("etl.orchestrator.extract_run", return_value={"downloaded": 5, "skipped": 0})
-    @patch("etl.orchestrator.upload_from_env")
-    @patch("etl.orchestrator.save")
-    def test_incremental_flow(
-        self, mock_save, mock_upload, mock_extract, mock_list, mock_load, tmp_path: Path
-    ) -> None:
+    def test_incremental_flow(self, tmp_data_dir: Path) -> None:
         """Incremental flow: extract -> push -> manifest update."""
+        config = ETLConfig(data_dir=str(tmp_data_dir))
+        orchestrator = Orchestrator(config)
+
         entries = [
             PushedEntry(
                 rel_path="yellow/yellow_tripdata_2024-01.parquet",
                 s3_key="data/yellow/yellow_tripdata_2024-01.parquet",
                 checksum="abc123",
-            )
+            ),
         ]
-        mock_upload.return_value = _make_push_result(entries)
+        extract = FakeExtract(downloaded=5, skipped=0)
+        push = FakePush(uploaded_count=2, uploaded_entries=entries)
+        s3_list = FakeS3List()
 
-        config = ETLConfig(data_dir=str(tmp_path / "data"))
-        orchestrator = Orchestrator(config)
-        result = orchestrator.run()
+        result = orchestrator.run(
+            s3_list_client=s3_list,
+            extract_client=extract,
+            push_client=push,
+        )
 
         assert "extract" in result
         assert "push" in result
@@ -56,158 +65,155 @@ class TestRunIncrementalFlow:
 class TestRunFullFlow:
     """Tests for full mode pipeline flow."""
 
-    @patch("etl.orchestrator.load", return_value={})
-    @patch("etl.orchestrator.list_s3_objects")
-    @patch("etl.orchestrator.extract_run", return_value={"downloaded": 10, "skipped": 0})
-    @patch("etl.orchestrator.upload_from_env")
-    @patch("etl.orchestrator.save")
-    def test_full_flow(
-        self, mock_save, mock_upload, mock_extract, mock_list, mock_load, tmp_path: Path
-    ) -> None:
+    def test_full_flow(self, tmp_data_dir: Path) -> None:
         """Full flow: extract (reset) -> push (overwrite)."""
-        mock_upload.return_value = _make_push_result()
-
-        config = ETLConfig(data_dir=str(tmp_path / "data"), mode="full")
+        config = ETLConfig(data_dir=str(tmp_data_dir), mode="full")
         orchestrator = Orchestrator(config)
-        orchestrator.run()
 
-        # In full mode, list_s3_objects should NOT be called (manifest rebuild skipped)
-        mock_list.assert_not_called()
+        extract = FakeExtract(downloaded=10, skipped=0)
+        push = FakePush(uploaded_count=10, uploaded_entries=[])
 
-        # Push should be called with overwrite=True
-        call_kwargs = mock_upload.call_args
-        assert call_kwargs.kwargs["config"].overwrite is True
+        result = orchestrator.run(
+            extract_client=extract,
+            push_client=push,
+        )
+
+        assert "extract" in result
+        assert "push" in result
+        assert result["extract"]["downloaded"] == 10
 
 
 class TestManifestPassedToExtract:
     """Tests for manifest passing to extract."""
 
-    @patch("etl.orchestrator.load")
-    @patch("etl.orchestrator.list_s3_objects", return_value=[])
-    @patch("etl.orchestrator.extract_run")
-    @patch("etl.orchestrator.upload_from_env")
-    @patch("etl.orchestrator.save")
-    def test_manifest_passed_to_extract(
-        self, mock_save, mock_upload, mock_extract, mock_list, mock_load, tmp_path: Path
-    ) -> None:
+    def test_manifest_passed_to_extract(self, tmp_data_dir: Path) -> None:
         """Extract receives existing manifest."""
         existing_manifest = {
             "yellow/yellow_tripdata_2024-01.parquet": {
                 "s3_key": "data/yellow/yellow_tripdata_2024-01.parquet",
                 "checksum": "existing",
-            }
+            },
         }
-        mock_load.return_value = existing_manifest
-        mock_upload.return_value = _make_push_result()
+        manifest_path = tmp_data_dir / ".push_manifest.json"
+        import json
+        manifest_path.write_text(json.dumps(existing_manifest))
 
-        config = ETLConfig(data_dir=str(tmp_path / "data"))
+        config = ETLConfig(data_dir=str(tmp_data_dir))
         orchestrator = Orchestrator(config)
-        orchestrator.run()
 
-        call_kwargs = mock_extract.call_args
-        assert call_kwargs.kwargs["push_manifest"] == existing_manifest
+        extract = FakeExtract(downloaded=0, skipped=0)
+        push = FakePush(uploaded_count=0, uploaded_entries=[])
+
+        orchestrator.run(
+            s3_list_client=FakeS3List(),
+            extract_client=extract,
+            push_client=push,
+        )
+
+        assert extract.call_count == 1
+        assert extract.last_data_dir == str(tmp_data_dir)
 
 
 class TestPushReceivesBucketAndPrefix:
     """Tests for push receiving correct bucket and prefix."""
 
-    @patch("etl.orchestrator.load", return_value={})
-    @patch("etl.orchestrator.list_s3_objects", return_value=[])
-    @patch("etl.orchestrator.extract_run", return_value={})
-    @patch("etl.orchestrator.upload_from_env")
-    @patch("etl.orchestrator.save")
-    def test_push_receives_bucket_and_prefix(
-        self, mock_save, mock_upload, mock_extract, mock_list, mock_load, tmp_path: Path
-    ) -> None:
+    def test_push_receives_bucket_and_prefix(self, tmp_data_dir: Path) -> None:
         """Push receives bucket and prefix from config."""
-        mock_upload.return_value = _make_push_result()
-
         config = ETLConfig(
-            data_dir=str(tmp_path / "data"),
+            data_dir=str(tmp_data_dir),
             bucket="custom-bucket",
             prefix="custom-prefix",
         )
         orchestrator = Orchestrator(config)
-        orchestrator.run()
 
-        call_kwargs = mock_upload.call_args
-        assert call_kwargs.kwargs["bucket"] == "custom-bucket"
-        assert call_kwargs.kwargs["prefix"] == "custom-prefix"
+        push = FakePush(uploaded_count=0, uploaded_entries=[])
+        s3_list = FakeS3List()
+
+        orchestrator.run(
+            s3_list_client=s3_list,
+            extract_client=FakeExtract(),
+            push_client=push,
+        )
+
+        assert push.last_bucket == "custom-bucket"
+        assert push.last_prefix == "custom-prefix"
 
 
 class TestManifestSavedAfterPush:
     """Tests for manifest saving after push."""
 
-    @patch("etl.orchestrator.load", return_value={})
-    @patch("etl.orchestrator.list_s3_objects", return_value=[])
-    @patch("etl.orchestrator.extract_run", return_value={})
-    @patch("etl.orchestrator.upload_from_env")
-    @patch("etl.orchestrator.save")
-    def test_manifest_saved_after_push(
-        self, mock_save, mock_upload, mock_extract, mock_list, mock_load, tmp_path: Path
-    ) -> None:
+    def test_manifest_saved_after_push(self, tmp_data_dir: Path) -> None:
         """Manifest is saved with uploaded_entries after push."""
+        config = ETLConfig(data_dir=str(tmp_data_dir))
+        orchestrator = Orchestrator(config)
+
         entries = [
             PushedEntry(
                 rel_path="yellow/file.parquet",
                 s3_key="data/yellow/file.parquet",
                 checksum="abc",
-            )
+            ),
         ]
-        mock_upload.return_value = _make_push_result(entries)
+        push = FakePush(uploaded_count=1, uploaded_entries=entries)
+        s3_list = FakeS3List()
 
-        config = ETLConfig(data_dir=str(tmp_path / "data"))
-        orchestrator = Orchestrator(config)
-        orchestrator.run()
+        orchestrator.run(
+            s3_list_client=s3_list,
+            extract_client=FakeExtract(),
+            push_client=push,
+        )
 
-        mock_save.assert_called_once()
-        saved_data = mock_save.call_args[0][1]
-        assert "yellow/file.parquet" in saved_data
+        manifest_path = tmp_data_dir / ".push_manifest.json"
+        assert manifest_path.exists()
+
+        import json
+        saved = json.loads(manifest_path.read_text())
+        assert "yellow/file.parquet" in saved
+        assert saved["yellow/file.parquet"]["checksum"] == "abc"
 
 
 class TestResultContainsExtractAndPush:
     """Tests for return value structure."""
 
-    @patch("etl.orchestrator.load", return_value={})
-    @patch("etl.orchestrator.list_s3_objects", return_value=[])
-    @patch("etl.orchestrator.extract_run", return_value={"downloaded": 3})
-    @patch("etl.orchestrator.upload_from_env")
-    @patch("etl.orchestrator.save")
-    def test_result_contains_extract_and_push(
-        self, mock_save, mock_upload, mock_extract, mock_list, mock_load, tmp_path: Path
-    ) -> None:
+    def test_result_contains_extract_and_push(self, tmp_data_dir: Path) -> None:
         """Return dict has both extract and push results."""
-        mock_upload.return_value = _make_push_result()
-
-        config = ETLConfig(data_dir=str(tmp_path / "data"))
+        config = ETLConfig(data_dir=str(tmp_data_dir))
         orchestrator = Orchestrator(config)
-        result = orchestrator.run()
+
+        extract = FakeExtract(downloaded=3, skipped=1)
+        push = FakePush(uploaded_count=3, uploaded_entries=[])
+        s3_list = FakeS3List()
+
+        result = orchestrator.run(
+            s3_list_client=s3_list,
+            extract_client=extract,
+            push_client=push,
+        )
 
         assert "extract" in result
         assert "push" in result
         assert "reconciled" in result
-        assert result["extract"] == {"downloaded": 3}
+        assert result["extract"]["downloaded"] == 3
 
 
 class TestReconcileRebuildsMissing:
     """Tests for reconciliation logic."""
 
-    @patch("etl.orchestrator.load", return_value={})
-    @patch("etl.orchestrator.list_s3_objects", return_value=[])
-    @patch("etl.orchestrator.extract_run", return_value={})
-    @patch("etl.orchestrator.upload_from_env")
-    @patch("etl.orchestrator.save")
-    def test_reconcile_rebuilds_missing(
-        self, mock_save, mock_upload, mock_extract, mock_list, mock_load, tmp_path: Path
-    ) -> None:
+    def test_reconcile_rebuilds_missing(self, tmp_data_dir: Path) -> None:
         """Divergence: missing file triggers rebuild."""
-        mock_upload.return_value = _make_push_result()
-
-        config = ETLConfig(data_dir=str(tmp_path / "data"))
+        config = ETLConfig(data_dir=str(tmp_data_dir))
         orchestrator = Orchestrator(config)
-        result = orchestrator.run()
 
-        # _reconcile returns {"rebuilt": 0, "recovered": 0} as placeholder
+        extract = FakeExtract(downloaded=0, skipped=0)
+        push = FakePush(uploaded_count=0, uploaded_entries=[])
+        s3_list = FakeS3List()
+
+        result = orchestrator.run(
+            s3_list_client=s3_list,
+            extract_client=extract,
+            push_client=push,
+        )
+
         assert "rebuilt" in result["reconciled"]
         assert "recovered" in result["reconciled"]
 
@@ -215,26 +221,75 @@ class TestReconcileRebuildsMissing:
 class TestRebuildManifestFromS3:
     """Tests for manifest rebuild from S3 in incremental mode."""
 
-    @patch("etl.orchestrator.load", return_value={})
-    @patch("etl.orchestrator.list_s3_objects")
-    @patch("etl.orchestrator.extract_run", return_value={})
-    @patch("etl.orchestrator.upload_from_env")
-    @patch("etl.orchestrator.save")
-    def test_rebuild_manifest_from_s3(
-        self, mock_save, mock_upload, mock_extract, mock_list, mock_load, tmp_path: Path
-    ) -> None:
-        """Incremental + no manifest -> rebuild via push list_s3_objects."""
-        from push.core.push_manifest import S3Object
+    def test_rebuild_manifest_from_s3(self, tmp_data_dir: Path) -> None:
+        """Incremental + no manifest -> rebuild via FakeS3List."""
+        config = ETLConfig(data_dir=str(tmp_data_dir))
+        orchestrator = Orchestrator(config)
 
-        mock_list.return_value = [
+        s3_objects = [
             S3Object(key="data/yellow/file.parquet"),
         ]
-        mock_upload.return_value = _make_push_result()
+        entries = [
+            PushedEntry(
+                rel_path="yellow/file.parquet",
+                s3_key="data/yellow/file.parquet",
+                checksum="abc",
+            ),
+        ]
+        s3_list = FakeS3List(objects=s3_objects)
+        extract = FakeExtract(downloaded=0, skipped=0)
+        push = FakePush(uploaded_count=1, uploaded_entries=entries)
 
-        config = ETLConfig(data_dir=str(tmp_path / "data"))
+        orchestrator.run(
+            s3_list_client=s3_list,
+            extract_client=extract,
+            push_client=push,
+        )
+
+        manifest_path = tmp_data_dir / ".push_manifest.json"
+        assert manifest_path.exists()
+
+        import json
+        saved = json.loads(manifest_path.read_text())
+        assert "yellow/file.parquet" in saved
+
+    def test_incremental_uses_cached_manifest(self, tmp_data_dir: Path) -> None:
+        """Incremental with existing manifest -> uses cached, not S3."""
+        manifest_path = tmp_data_dir / ".push_manifest.json"
+        manifest_path.write_text(
+            '{"yellow/cached.parquet": {"s3_key": "data/yellow/cached.parquet"}}'
+        )
+
+        config = ETLConfig(data_dir=str(tmp_data_dir))
         orchestrator = Orchestrator(config)
-        orchestrator.run()
 
-        mock_list.assert_called_once()
-        assert mock_list.call_args.kwargs["bucket"] == ""
-        assert mock_list.call_args.kwargs["prefix"] == "data"
+        extract = FakeExtract(downloaded=0, skipped=1)
+        push = FakePush(uploaded_count=0, uploaded_entries=[])
+
+        # No s3_list_client provided - should NOT call S3 because manifest exists
+        orchestrator.run(
+            extract_client=extract,
+            push_client=push,
+        )
+
+        import json
+        saved = json.loads(manifest_path.read_text())
+        assert "yellow/cached.parquet" in saved
+
+    def test_full_mode_never_rebuilds_manifest(self, tmp_data_dir: Path) -> None:
+        """Full mode never rebuilds manifest from S3."""
+        config = ETLConfig(data_dir=str(tmp_data_dir), mode="full")
+        orchestrator = Orchestrator(config)
+
+        s3_list = FakeS3List(objects=[S3Object(key="data/yellow/file.parquet")])
+        extract = FakeExtract(downloaded=5, skipped=0)
+        push = FakePush(uploaded_count=5, uploaded_entries=[])
+
+        orchestrator.run(
+            s3_list_client=s3_list,
+            extract_client=extract,
+            push_client=push,
+        )
+
+        manifest_path = tmp_data_dir / ".push_manifest.json"
+        assert manifest_path.exists()

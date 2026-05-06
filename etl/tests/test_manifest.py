@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -14,7 +15,6 @@ from etl.manifest import load, save, update_from_entries
 
 
 class TestLoad:
-    """Tests for manifest.load()."""
 
     def test_load_nonexistent(self, tmp_data_dir: Path) -> None:
         """Manifest file does not exist -> returns empty dict."""
@@ -51,7 +51,20 @@ class TestLoad:
         with pytest.raises(PushManifestError, match="^Push manifest must be a dict"):
             load(tmp_data_dir)
 
+    def test_load_oserror(self, tmp_data_dir: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        """OSError during read -> raises PushManifestError."""
+        manifest_path = tmp_data_dir / ".push_manifest.json"
+        manifest_path.write_text('{"key": "value"}')
 
+        def mock_open(*_args: object, **_kwargs: object) -> None:
+            raise OSError("Permission denied")
+
+        monkeypatch.setattr("builtins.open", mock_open)
+
+        with pytest.raises(PushManifestError, match="^Push manifest cannot be read"):
+            load(tmp_data_dir)
+
+ 
 class TestSave:
     """Tests for manifest.save()."""
 
@@ -78,13 +91,27 @@ class TestSave:
         assert manifest_path.exists()
         assert load(nested_data_dir) == manifest
 
+    def test_save_exact_content(self, tmp_data_dir: Path) -> None:
+        """Save writes correct JSON with 2-space indentation."""
+        manifest = {"key": "value"}
+        save(tmp_data_dir, manifest)
+
+        manifest_path = tmp_data_dir / ".push_manifest.json"
+        content = manifest_path.read_text()
+        parsed = json.loads(content)
+        assert parsed == {"key": "value"}
+        assert '  "key"' in content
+
+    def test_save_returns_none(self, tmp_data_dir: Path) -> None:
+        """Save returns None."""
+        save(tmp_data_dir, {"key": "value"})
 
 class TestUpdateFromEntries:
     """Tests for manifest.update_from_entries()."""
 
     def test_update_from_entries(self, fake_pushed_entries: list[PushedEntry]) -> None:
         """PushedEntry records are added to manifest."""
-        manifest: dict = {}
+        manifest: dict[str, Any] = {}
         update_from_entries(manifest, fake_pushed_entries)
 
         assert len(manifest) == 2

@@ -21,7 +21,7 @@ upload(data_dir, client, state, config) → walk data/ tree
     → if not pushed or overwrite=True:
       → multipart upload via S3Client
       → record push in state
-    → return PushResult { uploaded, skipped, failed, total }
+    → return PushResult { uploaded, skipped, failed, total, uploaded_files }
     → if delete_after_push=True: delete local file
 ```
 
@@ -39,7 +39,7 @@ state = PushState("data/.push_state.json")
 config = UploadConfig(overwrite=False)
 
 result = upload("data", client, state, config)
-# result: PushResult(uploaded=12, skipped=0, failed=0, total=12)
+# result: PushResult(uploaded=12, skipped=0, failed=0, total=12, uploaded_files=['fhv/fhv_tripdata_2024-01.parquet', ...])
 ```
 
 ### Environment-based upload
@@ -50,7 +50,7 @@ from push.core.state import UploadConfig
 
 # Requires: S3_BUCKET, S3_ENDPOINT_URL, AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY
 result = upload_from_env("data")
-# result: PushResult(uploaded=12, skipped=0, failed=0, total=12)
+# result: PushResult(uploaded=12, skipped=0, failed=0, total=12, uploaded_files=['fhv/fhv_tripdata_2024-01.parquet', ...])
 ```
 
 ### Upload with auto-delete
@@ -62,7 +62,7 @@ from push.core.state import UploadConfig
 # Upload and delete local files after successful push
 config = UploadConfig(delete_after_push=True)
 result = upload_from_env("data", config=config)
-# result: PushResult(uploaded=12, skipped=0, failed=0, total=12)
+# result: PushResult(uploaded=12, skipped=0, failed=0, total=12, uploaded_files=['fhv/fhv_tripdata_2024-01.parquet', ...])
 # Local parquet files are deleted after upload confirmation
 ```
 
@@ -106,10 +106,10 @@ push/
 
 | Input | Type | Output | Type |
 |---|---|---|---|
-| `data_dir` | `Path` | `PushResult` | `uploaded, skipped, failed, total` |
+| `data_dir` | `Path` | `PushResult` | `uploaded, skipped, failed, total, uploaded_files` |
 | `client` | `S3Client` | state file | `.push_state.json` |
 | `state` | `PushState` | S3 objects | `data/{type}/{filename}.parquet` |
-| `config` | `UploadConfig` | — | — |
+| `config` | `UploadConfig` | manifest file | `.push_manifest.json` |
 
 ---
 
@@ -146,7 +146,12 @@ client = S3Client(FakeS3Client(bucket="test"), bucket="test")
 START → COLLECT_FILES → CHECK_PUSHED → UPLOAD → RECORD_STATE
                                   ↘ SKIP (already pushed)
                               ↘ ERROR → LOG_ERROR → CONTINUE
+
+After upload completes:
+RECORD_STATE → WRITE_MANIFEST (records uploaded_files to .push_manifest.json)
 ```
+
+The `.push_manifest.json` file is written after each upload run, containing the list of relative file paths that were successfully uploaded. This manifest is read by `extract` to skip downloading files already present in S3.
 
 ---
 

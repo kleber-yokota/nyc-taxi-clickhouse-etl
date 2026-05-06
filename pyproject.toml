@@ -46,7 +46,7 @@ ignore_names = [
 ]
 
 [tool.mutmut]
-paths_to_mutate = ["extract"]
+paths_to_mutate = ["extract", "etl"]
 do_not_mutate = ["*/tests/*", "*/conftest.py", "*/test_*.py", "*/__init__.py"]
 runner = "python -m pytest extract/tests/downloaders/ -q --ignore=extract/tests/downloaders/test_fuzz.py --ignore=extract/tests/downloaders/test_e2e.py --ignore=extract/tests/downloaders/test_e2e_errors.py --ignore=extract/tests/downloaders/test_e2e_retry.py"
 exclude_dirs = ["__pycache__", ".venv", "mutants"]

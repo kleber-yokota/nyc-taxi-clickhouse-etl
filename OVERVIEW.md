@@ -45,10 +45,11 @@ main.py → extract.core.downloader.run()
 main.py → push.core.runner.upload_from_env()
 
 extract → (external: NYC TLC CDN)
+extract → push (reads .push_manifest.json, read-only)
 push → (external: Garage/S3 via boto3)
 ```
 
-No cross-module imports. `extract` and `push` are fully independent. Both operate on the shared `data/` directory.
+`extract` and `push` share the `data/` directory. `extract` reads `.push_manifest.json` (written by `push`) to skip downloading files already in S3. `push` never reads from `extract`.
 
 ---
 
@@ -60,6 +61,7 @@ No cross-module imports. `extract` and `push` are fully independent. Both operat
 | Directory | Writes to `data/<type>/` | Reads from `data/` recursively |
 | Naming | `<type>_tripdata_<year>-<month>.parquet` | Matches by glob `*.parquet` |
 | State files | `data/.download_state.json` | `data/.push_state.json` |
+| Push manifest | Writes `.push_manifest.json` with uploaded file list | Reads manifest to skip already-uploaded files |
 
 ---
 
@@ -105,7 +107,8 @@ No cross-module imports. `extract` and `push` are fully independent. Both operat
 ```
 data/
 ├── .download_state.json    # Extract state (URL → checksum)
-├── .push_state.json        # Push state (local path → s3_key + checksum)
+├── .push_manifest.json     # Push manifest (path → {s3_key, checksum})
+├── .push_manifest.json     # Push manifest (uploaded files list, shared with extract)
 ├── errors/
 │   └── download_errors.log  # Extract error log (JSON lines)
 ├── known_missing.txt        # Extract 404 tracker

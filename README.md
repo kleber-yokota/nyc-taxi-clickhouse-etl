@@ -10,7 +10,7 @@ NYC Trip Data → Extract → Transform → Load → Garage (Object Storage) →
 
 ## Flow
 
-1. **Extract** — Download NYC taxi trip datasets (yellow, green, fhv, etc.)
+1. **Extract** — Download NYC taxi trip datasets (yellow, green, fhv, etc.), skipping files already in S3
 2. **Transform** — Clean, normalize, and transform raw data
 3. **Load (Object Storage)** — Persist transformed data into Garage (S3-compatible object storage)
 4. **Load (OLAP)** — Load data into ClickHouse for analytical queries and dashboards

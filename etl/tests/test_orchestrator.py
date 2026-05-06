@@ -311,3 +311,138 @@ class TestOrchestrator:
 
         assert result["push"]["uploaded"] == 0
         mock_save.assert_called_once()
+
+    @patch("etl.orchestrator.extract_run")
+    @patch("etl.orchestrator.upload_from_env")
+    @patch("etl.orchestrator.load")
+    @patch("etl.orchestrator.save")
+    def test_run_save_called_with_data_dir_path(
+        self,
+        mock_save: MagicMock,
+        mock_load: MagicMock,
+        mock_upload: MagicMock,
+        mock_extract: MagicMock,
+        tmp_data_dir: Path,
+    ) -> None:
+        mock_load.return_value = {}
+        mock_upload.return_value = MagicMock(
+            uploaded=0,
+            skipped=0,
+            failed=0,
+            total=0,
+            uploaded_files=[],
+            uploaded_checksums={},
+        )
+
+        with patch.dict("os.environ", {"S3_BUCKET": "test-bucket"}):
+            orchestrator = Orchestrator()
+            orchestrator.run()
+
+        mock_save.assert_called_once()
+        save_args = mock_save.call_args[0]
+        assert isinstance(save_args[0], Path)
+        assert str(save_args[0]) == "data"
+
+    @patch("etl.orchestrator.extract_run")
+    @patch("etl.orchestrator.upload_from_env")
+    @patch("etl.orchestrator.load")
+    @patch("etl.orchestrator.save")
+    def test_run_extract_called_with_data_dir(
+        self,
+        mock_save: MagicMock,
+        mock_load: MagicMock,
+        mock_upload: MagicMock,
+        mock_extract: MagicMock,
+        tmp_data_dir: Path,
+    ) -> None:
+        mock_load.return_value = {}
+        mock_upload.return_value = MagicMock(
+            uploaded=0,
+            skipped=0,
+            failed=0,
+            total=0,
+            uploaded_files=[],
+            uploaded_checksums={},
+        )
+
+        with patch.dict("os.environ", {"S3_BUCKET": "test-bucket"}):
+            orchestrator = Orchestrator()
+            orchestrator.run()
+
+        extract_call = mock_extract.call_args
+        assert extract_call.kwargs["data_dir"] == "data"
+
+    @patch("etl.orchestrator.extract_run")
+    @patch("etl.orchestrator.upload_from_env")
+    @patch("etl.orchestrator.load")
+    @patch("etl.orchestrator.save")
+    def test_run_calls_add_entry_with_correct_s3_key(
+        self,
+        mock_save: MagicMock,
+        mock_load: MagicMock,
+        mock_upload: MagicMock,
+        mock_extract: MagicMock,
+        tmp_data_dir: Path,
+    ) -> None:
+        from etl.manifest import add_entry
+
+        real_manifest: dict = {}
+
+        def capture_add(manifest, rel_path, s3_key, checksum):
+            add_entry(manifest, rel_path, s3_key, checksum)
+
+        def capture_save(data_dir, manifest):
+            real_manifest.clear()
+            real_manifest.update(manifest)
+
+        mock_load.return_value = {}
+        mock_upload.return_value = MagicMock(
+            uploaded=1,
+            skipped=0,
+            failed=0,
+            total=1,
+            uploaded_files=["yellow/test.parquet"],
+            uploaded_checksums={"yellow/test.parquet": "sha256hash"},
+        )
+
+        with patch("etl.orchestrator.add_entry", side_effect=capture_add):
+            with patch("etl.orchestrator.save", side_effect=capture_save):
+                with patch.dict("os.environ", {"S3_BUCKET": "test-bucket", "S3_PREFIX": "data"}):
+                    orchestrator = Orchestrator()
+                    orchestrator.run()
+
+        assert "yellow/test.parquet" in real_manifest
+        entry = real_manifest["yellow/test.parquet"]
+        assert entry["s3_key"] == "data/yellow/test.parquet"
+        assert entry["checksum"] == "sha256hash"
+
+    @patch("etl.orchestrator.extract_run")
+    @patch("etl.orchestrator.upload_from_env")
+    @patch("etl.orchestrator.load")
+    @patch("etl.orchestrator.save")
+    def test_run_push_called_with_correct_config(
+        self,
+        mock_save: MagicMock,
+        mock_load: MagicMock,
+        mock_upload: MagicMock,
+        mock_extract: MagicMock,
+        tmp_data_dir: Path,
+    ) -> None:
+        mock_load.return_value = {}
+        mock_upload.return_value = MagicMock(
+            uploaded=0,
+            skipped=0,
+            failed=0,
+            total=0,
+            uploaded_files=[],
+            uploaded_checksums={},
+        )
+
+        with patch.dict("os.environ", {"S3_BUCKET": "test-bucket"}):
+            orchestrator = Orchestrator(ETLConfig(mode="full", delete_after_push=False))
+            orchestrator.run()
+
+        upload_call = mock_upload.call_args
+        assert upload_call.kwargs["data_dir"] == "data"
+        assert upload_call.kwargs["config"].overwrite is True
+        assert upload_call.kwargs["config"].delete_after_push is False

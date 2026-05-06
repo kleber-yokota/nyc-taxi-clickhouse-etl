@@ -53,14 +53,19 @@ Read-only access to the push manifest (`.push_manifest.json`). Never writes to t
 
 ```json
 {
-  "files": [
-    "fhv/fhv_tripdata_2024-01.parquet",
-    "yellow/yellow_tripdata_2024-01.parquet"
-  ]
+  "fhv/fhv_tripdata_2024-01.parquet": {
+    "s3_key": "data/fhv/fhv_tripdata_2024-01.parquet",
+    "checksum": "a1b2c3d4..."
+  },
+  "yellow/yellow_tripdata_2024-01.parquet": {
+    "s3_key": "data/yellow/yellow_tripdata_2024-01.parquet",
+    "checksum": "d4e5f6a7..."
+  }
 }
 ```
 
-- `files`: list of relative paths in `{data_type}/{filename}.parquet` format
+- Keys are relative paths in `{data_type}/{filename}.parquet` format
+- Each value has `s3_key` and `checksum` fields
 - Invalid or missing manifest → treated as empty (no files skipped)
 - Path matching uses relative path: `{data_type}/{filename}` (e.g., `yellow/yellow_tripdata_2024-01.parquet`)
 

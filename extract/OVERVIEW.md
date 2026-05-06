@@ -52,19 +52,23 @@ It is read by `extract` to skip downloading files already present in S3.
 
 ```json
 {
-  "files": [
-    "fhv/fhv_tripdata_2024-01.parquet",
-    "fhv/fhv_tripdata_2024-02.parquet",
-    "yellow/yellow_tripdata_2024-01.parquet"
-  ]
+  "fhv/fhv_tripdata_2024-01.parquet": {
+    "s3_key": "data/fhv/fhv_tripdata_2024-01.parquet",
+    "checksum": "a1b2c3d4..."
+  },
+  "yellow/yellow_tripdata_2024-01.parquet": {
+    "s3_key": "data/yellow/yellow_tripdata_2024-01.parquet",
+    "checksum": "d4e5f6a7..."
+  }
 }
 ```
 
-| Field | Type | Description |
+| Key | Type | Description |
 |---|---|---|
-| `files` | `string[]` | Relative paths of successfully uploaded parquet files |
+| `{relative_path}` | `object` | Relative path key in `{data_type}/{filename}.parquet` format |
+| `s3_key` | `string` | Full S3 key (e.g. `data/yellow/...parquet`) |
+| `checksum` | `string` | SHA-256 hex digest of the file |
 
-Each path uses the format `{data_type}/{filename}.parquet` (e.g., `yellow/yellow_tripdata_2024-01.parquet`).
 If the file does not exist or has an invalid format, `extract` treats it as an empty manifest (no files skipped).
 
 ---

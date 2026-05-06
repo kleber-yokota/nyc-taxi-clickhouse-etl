@@ -107,7 +107,7 @@ push → (external: Garage/S3 via boto3)
 ```
 data/
 ├── .download_state.json    # Extract state (URL → checksum)
-├── .push_state.json        # Push state (local path → s3_key + checksum)
+├── .push_manifest.json     # Push manifest (path → {s3_key, checksum})
 ├── .push_manifest.json     # Push manifest (uploaded files list, shared with extract)
 ├── errors/
 │   └── download_errors.log  # Extract error log (JSON lines)

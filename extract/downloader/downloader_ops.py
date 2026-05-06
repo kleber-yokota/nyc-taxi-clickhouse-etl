@@ -6,6 +6,7 @@ import logging
 from pathlib import Path
 
 from extract.core.known_missing import KnownMissing
+from extract.core.push_manifest import is_pushed_in_manifest
 from extract.core.state import CatalogEntry
 from extract.core.state_manager import State
 from extract.downloader.downloader_download import download_and_verify
@@ -46,11 +47,9 @@ def should_skip_download(
             return True
         state.save(entry.url, "")
 
-    if push_manifest is not None:
-        rel_path = f"{entry.target_dir}/{entry.filename}"
-        if rel_path in push_manifest:
-            logger.info("Skipping (already in S3): %s", entry.url)
-            return True
+    if push_manifest is not None and is_pushed_in_manifest(push_manifest, entry.target_dir, entry.year, entry.month):
+        logger.info("Skipping (already in S3): %s", entry.url)
+        return True
 
     return False
 

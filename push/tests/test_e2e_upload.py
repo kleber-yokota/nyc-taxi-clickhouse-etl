@@ -6,13 +6,14 @@ from pathlib import Path
 
 import pytest
 
+from push.core.client import S3Client
 from push.core.state import PushState, UploadConfig
 
 
 class TestPushPipeline:
     """Full push pipeline tests using real MinIO."""
 
-    def test_push_fresh_files(self, sample_files: Path, s3_client, caplog):
+    def test_push_fresh_files(self, sample_files: Path, s3_client: S3Client, caplog: pytest.LogCaptureFixture) -> None:
         import logging
         caplog.set_level(logging.INFO)
         state_file = sample_files / ".push_state.json"
@@ -27,7 +28,7 @@ class TestPushPipeline:
         assert result.failed == 0
         assert result.total == 3
 
-    def test_push_skip_already_pushed(self, sample_files: Path, s3_client, caplog):
+    def test_push_skip_already_pushed(self, sample_files: Path, s3_client: S3Client, caplog: pytest.LogCaptureFixture) -> None:
         import logging
         caplog.set_level(logging.INFO)
         state_file = sample_files / ".push_state.json"
@@ -42,7 +43,7 @@ class TestPushPipeline:
         assert result.skipped == 3
         assert result.total == 3
 
-    def test_push_overwrite(self, sample_files: Path, s3_client):
+    def test_push_overwrite(self, sample_files: Path, s3_client: S3Client) -> None:
         state_file = sample_files / ".push_state.json"
         s3_client.create_bucket()
         state = PushState(state_file)
@@ -54,7 +55,7 @@ class TestPushPipeline:
         assert result.uploaded == 3
         assert result.skipped == 0
 
-    def test_push_include_filter(self, sample_files: Path, s3_client):
+    def test_push_include_filter(self, sample_files: Path, s3_client: S3Client) -> None:
         state_file = sample_files / ".push_state.json"
         s3_client.create_bucket()
         state = PushState(state_file)
@@ -68,7 +69,7 @@ class TestPushPipeline:
         assert result.uploaded == 2
         assert result.total == 2
 
-    def test_push_nonexistent_dir(self, sample_files: Path, s3_client):
+    def test_push_nonexistent_dir(self, sample_files: Path, s3_client: S3Client) -> None:
         s3_client.create_bucket()
         state = PushState(sample_files / ".push_state.json")
 
@@ -82,7 +83,7 @@ class TestPushPipeline:
 class TestPushSkip:
     """Skip behavior tests using real MinIO."""
 
-    def test_skip_pre_recorded(self, sample_files_with_state: Path, s3_client, caplog):
+    def test_skip_pre_recorded(self, sample_files_with_state: Path, s3_client: S3Client, caplog: pytest.LogCaptureFixture) -> None:
         import logging
         caplog.set_level(logging.DEBUG)
         state_file = sample_files_with_state / ".push_state.json"
@@ -107,7 +108,7 @@ class TestPushSkip:
         assert len(skip_records) >= 1
         assert "yellow_tripdata_2024-01.parquet" in skip_records[0].message
 
-    def test_overwrite_pre_recorded(self, sample_files_with_state: Path, s3_client):
+    def test_overwrite_pre_recorded(self, sample_files_with_state: Path, s3_client: S3Client) -> None:
         state_file = sample_files_with_state / ".push_state.json"
         s3_client.create_bucket()
         state = PushState(state_file)
@@ -118,7 +119,7 @@ class TestPushSkip:
         assert result.uploaded == 1
         assert result.skipped == 0
 
-    def test_push_delete_after_push(self, sample_files: Path, s3_client, caplog):
+    def test_push_delete_after_push(self, sample_files: Path, s3_client: S3Client, caplog: pytest.LogCaptureFixture) -> None:
         import logging
         caplog.set_level(logging.INFO)
         state_file = sample_files / ".push_state.json"
@@ -142,7 +143,7 @@ class TestPushSkip:
         objects = s3_client.list_objects()
         assert len(objects) == 3
 
-    def test_push_delete_after_push_with_overwrite(self, sample_files: Path, s3_client):
+    def test_push_delete_after_push_with_overwrite(self, sample_files: Path, s3_client: S3Client) -> None:
         state_file = sample_files / ".push_state.json"
         s3_client.create_bucket()
         state = PushState(state_file)
@@ -159,7 +160,7 @@ class TestPushSkip:
         for parquet in sample_files.rglob("*.parquet"):
             assert not parquet.exists()
 
-    def test_push_delete_after_push_false_keeps_files(self, sample_files: Path, s3_client):
+    def test_push_delete_after_push_false_keeps_files(self, sample_files: Path, s3_client: S3Client) -> None:
         state_file = sample_files / ".push_state.json"
         s3_client.create_bucket()
         state = PushState(state_file)

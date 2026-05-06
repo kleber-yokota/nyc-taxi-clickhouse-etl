@@ -5,7 +5,7 @@ Per AGENTS.md, fakes reduce the Mock/Assert Ratio and make tests more robust.
 
 from __future__ import annotations
 
-from typing import BinaryIO
+from typing import Any, BinaryIO
 
 
 class FakeS3Client:
@@ -36,7 +36,7 @@ class FakeS3Client:
             return f"{self.prefix}/{relative_path}"
         return relative_path
 
-    def put_object(self, key: str, body: bytes | BinaryIO, **kwargs: object) -> dict:
+    def put_object(self, key: str, body: bytes | BinaryIO, **kwargs: object) -> dict[str, Any]:
         """Store object in memory.
 
         Args:
@@ -52,7 +52,7 @@ class FakeS3Client:
             self.objects[key] = body.read()
         return {"ETag": '"fake"'}
 
-    def upload_fileobj(self, key: str, fileobj: BinaryIO, **kwargs: object) -> dict:
+    def upload_fileobj(self, key: str, fileobj: BinaryIO, **kwargs: object) -> dict[str, Any]:
         """Upload file object to memory store.
 
         Args:
@@ -66,7 +66,7 @@ class FakeS3Client:
         self.objects[key] = fileobj.read()
         return {"ETag": '"fake"'}
 
-    def head_object(self, key: str) -> dict | None:
+    def head_object(self, key: str) -> dict[str, Any] | None:
         """Check if object exists.
 
         Args:

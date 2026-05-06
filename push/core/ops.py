@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
-from typing import BinaryIO, Protocol
+from typing import Any, BinaryIO, Protocol
 
-from botocore.exceptions import ClientError
+from botocore.exceptions import ClientError  # type: ignore[import-untyped]
 
 from .errors import S3ClientError
 
@@ -18,13 +18,13 @@ class S3Ops(Protocol):
 
     def put_object(
         self, Bucket: str, Key: str, Body: bytes | BinaryIO, ContentType: str,
-    ) -> dict: ...
+    ) -> dict[str, Any]: ...
 
     def upload_fileobj(
         self, Fileobj: BinaryIO, Bucket: str, Key: str, Config: object,
     ) -> None: ...
 
-    def head_object(self, Bucket: str, Key: str) -> dict | None: ...
+    def head_object(self, Bucket: str, Key: str) -> dict[str, Any] | None: ...
 
     def get_paginator(self, name: str) -> object: ...
 
@@ -41,7 +41,7 @@ def put_object(
     key: str,
     body: bytes | BinaryIO,
     content_type: str,
-) -> dict:
+) -> dict[str, Any]:
     """Upload a single object to S3.
 
     Args:
@@ -90,7 +90,7 @@ def upload_fileobj(
         raise S3ClientError(f"UploadFileObj failed for {key}: {e}")
 
 
-def head_object(client: S3Ops, bucket: str, key: str) -> dict | None:
+def head_object(client: S3Ops, bucket: str, key: str) -> dict[str, Any] | None:
     """Check if an object exists in S3.
 
     Args:
@@ -133,7 +133,7 @@ def list_objects(
     try:
         paginator = client.get_paginator("list_objects_v2")
         keys: list[str] = []
-        for page in paginator.paginate(Bucket=bucket, Prefix=prefix):
+        for page in paginator.paginate(Bucket=bucket, Prefix=prefix):  # type: ignore[attr-defined]
             for obj in page.get("Contents", []):
                 keys.append(obj["Key"])
         return keys

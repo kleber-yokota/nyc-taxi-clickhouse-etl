@@ -39,7 +39,7 @@ def glob_pattern_strategies() -> st.SearchStrategy[str]:
 
 
 @composite
-def push_result_params(draw: Any) -> dict:
+def push_result_params(draw: Any) -> dict[str, Any]:
     """Generate valid PushResult constructor parameters."""
     return {
         "uploaded": draw(st.integers(min_value=0, max_value=10000)),
@@ -50,7 +50,7 @@ def push_result_params(draw: Any) -> dict:
 
 
 @composite
-def upload_config_params(draw: Any) -> dict:
+def upload_config_params(draw: Any) -> dict[str, Any]:
     """Generate valid UploadConfig constructor parameters."""
     include_patterns = draw(st.lists(
         glob_pattern_strategies(),
@@ -79,7 +79,7 @@ class TestPushResultProperties:
 
     @given(params=push_result_params())
     @settings(max_examples=30, deadline=2000)
-    def test_pushresult_defaults_overridable(self, params: dict) -> None:
+    def test_pushresult_defaults_overridable(self, params: dict[str, Any]) -> None:
         """PushResult fields accept any valid integer values."""
         result = PushResult(**params)
         assert result.uploaded == params["uploaded"]
@@ -89,18 +89,18 @@ class TestPushResultProperties:
 
     @given(params=push_result_params())
     @settings(max_examples=30, deadline=2000)
-    def test_pushresult_frozen(self, params: dict) -> None:
+    def test_pushresult_frozen(self, params: dict[str, Any]) -> None:
         """PushResult is immutable — mutation raises FrozenInstanceError."""
         from dataclasses import FrozenInstanceError
         result = PushResult(**params)
         with pytest.raises(FrozenInstanceError):
-            result.uploaded = 0  # type: ignore[assignment]
+            result.uploaded = 0  # type: ignore[misc]
         with pytest.raises(FrozenInstanceError):
-            result.skipped = 0  # type: ignore[assignment]
+            result.skipped = 0  # type: ignore[misc]
 
     @given(params=push_result_params())
     @settings(max_examples=30, deadline=2000)
-    def test_pushresult_equality(self, params: dict) -> None:
+    def test_pushresult_equality(self, params: dict[str, Any]) -> None:
         """Two PushResults with same fields are equal."""
         result1 = PushResult(**params)
         result2 = PushResult(**params)
@@ -108,7 +108,7 @@ class TestPushResultProperties:
 
     @given(params_a=push_result_params(), params_b=push_result_params())
     @settings(max_examples=30, deadline=2000)
-    def test_pushresult_inequality_on_different_fields(self, params_a: dict, params_b: dict) -> None:
+    def test_pushresult_inequality_on_different_fields(self, params_a: dict[str, Any], params_b: dict[str, Any]) -> None:
         """Two PushResults with different fields are not equal."""
         result1 = PushResult(**params_a)
         result2 = PushResult(**params_b)
@@ -124,7 +124,7 @@ class TestUploadConfigProperties:
 
     @given(params=upload_config_params())
     @settings(max_examples=30, deadline=2000)
-    def test_uploadconfig_fields_preserved(self, params: dict) -> None:
+    def test_uploadconfig_fields_preserved(self, params: dict[str, Any]) -> None:
         """UploadConfig preserves all constructor values."""
         config = UploadConfig(**params)
         if params["include"] is not None:
@@ -135,16 +135,16 @@ class TestUploadConfigProperties:
 
     @given(params=upload_config_params())
     @settings(max_examples=30, deadline=2000)
-    def test_uploadconfig_frozen(self, params: dict) -> None:
+    def test_uploadconfig_frozen(self, params: dict[str, Any]) -> None:
         """UploadConfig is immutable — mutation raises FrozenInstanceError."""
         from dataclasses import FrozenInstanceError
         config = UploadConfig(**params)
         with pytest.raises(FrozenInstanceError):
-            config.overwrite = not config.overwrite  # type: ignore[assignment]
+            config.overwrite = not config.overwrite  # type: ignore[misc]
 
     @given(params=upload_config_params())
     @settings(max_examples=30, deadline=2000)
-    def test_uploadconfig_equality(self, params: dict) -> None:
+    def test_uploadconfig_equality(self, params: dict[str, Any]) -> None:
         """Two UploadConfigs with same fields are equal."""
         config1 = UploadConfig(**params)
         config2 = UploadConfig(**params)
@@ -152,7 +152,7 @@ class TestUploadConfigProperties:
 
     @given(params_a=upload_config_params(), params_b=upload_config_params())
     @settings(max_examples=30, deadline=2000)
-    def test_uploadconfig_different_include(self, params_a: dict, params_b: dict) -> None:
+    def test_uploadconfig_different_include(self, params_a: dict[str, Any], params_b: dict[str, Any]) -> None:
         """Configs with different include sets are not equal."""
         if params_a["include"] != params_b["include"]:
             config1 = UploadConfig(**params_a)
@@ -220,7 +220,7 @@ class TestMatchesAnyProperties:
 
     @given(path=safe_path_strategies(), patterns=st.lists(glob_pattern_strategies(), min_size=1, max_size=5, unique=True).map(set))
     @settings(max_examples=30, deadline=2000)
-    def test_wildcard_in_set_always_matches(self, path: str, patterns: set) -> None:
+    def test_wildcard_in_set_always_matches(self, path: str, patterns: set[str]) -> None:
         """If '*' is in pattern set, any path matches."""
         if "*" in patterns:
             assert _matches_any(path, patterns) is True

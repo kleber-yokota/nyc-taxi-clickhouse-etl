@@ -2,14 +2,15 @@
 
 from __future__ import annotations
 
-import boto3
-from botocore.config import Config
+import boto3  # type: ignore[import-untyped]
+from botocore.config import Config  # type: ignore[import-untyped]
 from hashlib import sha256
 from pathlib import Path
+from typing import Any, Iterator
 from unittest.mock import patch, MagicMock
 
 import pytest
-import testcontainers.minio as mc
+import testcontainers.minio as mc  # type: ignore[import-untyped]
 
 from push.core.client import S3Client
 from push.core.state import PushState
@@ -20,7 +21,7 @@ _FAKE_CHECKSUMS: dict[str, str] = {}
 
 
 @pytest.fixture(scope="module")
-def minio_container():
+def minio_container() -> Iterator[dict[str, str | int]]:
     """Start a MinIO container for integration tests."""
     container = mc.MinioContainer()
     container.start()
@@ -38,7 +39,7 @@ def minio_container():
 
 
 @pytest.fixture
-def real_client(minio_container):
+def real_client(minio_container: dict[str, str | int]) -> Any:
     """Create a real boto3 client connected to MinIO."""
     endpoint_url = minio_container["endpoint_url"]
     access_key = minio_container["access_key"]
@@ -55,13 +56,13 @@ def real_client(minio_container):
 
 
 @pytest.fixture
-def s3_client(minio_container, real_client):
+def s3_client(minio_container: dict[str, str | int], real_client: object) -> Iterator[S3Client]:
     """Create an S3Client connected to the MinIO container."""
     with patch("push.core.client.get_s3_client", return_value=real_client):
         yield S3Client.from_env(
             bucket="e2e-bucket",
             prefix="data",
-            endpoint_url=minio_container["endpoint_url"],
+            endpoint_url=str(minio_container["endpoint_url"]),
         )
 
 
@@ -84,7 +85,7 @@ def push_state_file(push_dir: Path) -> Path:
 
 
 @pytest.fixture
-def sample_files(push_dir: Path, fake_parquet_content: bytes):
+def sample_files(push_dir: Path, fake_parquet_content: bytes) -> Path:
     """Create sample parquet files in the push directory."""
     (push_dir / "yellow").mkdir(parents=True, exist_ok=True)
     (push_dir / "green").mkdir(parents=True, exist_ok=True)
@@ -97,7 +98,7 @@ def sample_files(push_dir: Path, fake_parquet_content: bytes):
 
 
 @pytest.fixture
-def sample_files_with_state(push_dir: Path, fake_parquet_content: bytes, push_state_file: Path):
+def sample_files_with_state(push_dir: Path, fake_parquet_content: bytes, push_state_file: Path) -> Path:
     """Create sample parquet files with pre-populated push state."""
     (push_dir / "yellow").mkdir(parents=True, exist_ok=True)
     (push_dir / "yellow" / "yellow_tripdata_2024-01.parquet").write_bytes(fake_parquet_content)
@@ -137,7 +138,7 @@ def pytest_sessionstart(session: pytest.Session) -> None:
             _FAKE_CHECKSUMS[content_key] = sha256(content).hexdigest()
         return _FAKE_CHECKSUMS[content_key]
 
-    push_module.compute_sha256 = cached_sha256
+    push_module.compute_sha256 = cached_sha256  # type: ignore[attr-defined]
 
 
 def pytest_collection_modifyitems(session: pytest.Session, config: pytest.Config, items: list[pytest.Item]) -> None:
@@ -160,7 +161,7 @@ def pytest_collection_modifyitems(session: pytest.Session, config: pytest.Config
     # Mock boto3.session.Session — avoids 2s startup per test
     mock_session = MagicMock()
     mock_session.client.return_value = MagicMock()
-    import boto3.session
+    import boto3.session  # type: ignore[import-untyped]
 
     boto3.session.Session = lambda *a, **k: mock_session
 

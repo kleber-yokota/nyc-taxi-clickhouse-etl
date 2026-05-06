@@ -1,7 +1,7 @@
 """Fuzz tests for push module using atheris — coverage-guided input validation."""
 
 import sys
-import atheris
+import atheris  # type: ignore[import-untyped]
 
 # Import under instrument_imports so atheris can trace execution
 with atheris.instrument_imports(include=["push.core.checksum", "push.core.filter", "push.core.state"]):
@@ -10,8 +10,8 @@ with atheris.instrument_imports(include=["push.core.checksum", "push.core.filter
     from push.core.state import PushResult, UploadConfig
 
 
-@atheris.instrument_func
-def TestChecksumContentType(data):
+@atheris.instrument_func  # type: ignore[untyped-decorator]
+def TestChecksumContentType(data: bytes) -> None:
     """Fuzz test for compute_content_type — accept any bytes input."""
     fdp = atheris.FuzzedDataProvider(data)
     try:
@@ -24,8 +24,8 @@ def TestChecksumContentType(data):
         return  # Expected — not a crash
 
 
-@atheris.instrument_func
-def TestChecksumSha256(data):
+@atheris.instrument_func  # type: ignore[untyped-decorator]
+def TestChecksumSha256(data: bytes) -> None:
     """Fuzz test for compute_sha256 — simulate file reads with random bytes."""
     fdp = atheris.FuzzedDataProvider(data)
     try:
@@ -45,8 +45,8 @@ def TestChecksumSha256(data):
         return  # Expected — not a crash
 
 
-@atheris.instrument_func
-def TestMatchesPattern(data):
+@atheris.instrument_func  # type: ignore[untyped-decorator]
+def TestMatchesPattern(data: bytes) -> None:
     """Fuzz test for _matches_pattern — test with random paths and patterns."""
     fdp = atheris.FuzzedDataProvider(data)
     try:
@@ -59,8 +59,8 @@ def TestMatchesPattern(data):
         return  # Expected — not a crash
 
 
-@atheris.instrument_func
-def TestMatchesAny(data):
+@atheris.instrument_func  # type: ignore[untyped-decorator]
+def TestMatchesAny(data: bytes) -> None:
     """Fuzz test for _matches_any — test with random paths and pattern sets."""
     fdp = atheris.FuzzedDataProvider(data)
     try:
@@ -78,8 +78,8 @@ def TestMatchesAny(data):
         return  # Expected — not a crash
 
 
-@atheris.instrument_func
-def TestPushResultFrozen(data):
+@atheris.instrument_func  # type: ignore[untyped-decorator]
+def TestPushResultFrozen(data: bytes) -> None:
     """Fuzz test for PushResult — verify frozen dataclass behavior."""
     fdp = atheris.FuzzedDataProvider(data)
     try:
@@ -94,7 +94,7 @@ def TestPushResultFrozen(data):
         assert result.total == total
         # Verify frozen — must raise on mutation
         try:
-            result.uploaded = 0  # type: ignore[assignment]
+            result.uploaded = 0  # type: ignore[misc]
             raise AssertionError("PushResult should be frozen")
         except Exception:
             pass  # Expected
@@ -102,8 +102,8 @@ def TestPushResultFrozen(data):
         return  # Expected — not a crash
 
 
-@atheris.instrument_func
-def TestUploadConfigFrozen(data):
+@atheris.instrument_func  # type: ignore[untyped-decorator]
+def TestUploadConfigFrozen(data: bytes) -> None:
     """Fuzz test for UploadConfig — verify frozen dataclass behavior."""
     fdp = atheris.FuzzedDataProvider(data)
     try:
@@ -128,7 +128,7 @@ def TestUploadConfigFrozen(data):
 
         # Verify frozen — must raise on mutation
         try:
-            config.overwrite = not overwrite  # type: ignore[assignment]
+            config.overwrite = not overwrite  # type: ignore[misc]
             raise AssertionError("UploadConfig should be frozen")
         except Exception:
             pass  # Expected
@@ -136,8 +136,8 @@ def TestUploadConfigFrozen(data):
         return  # Expected — not a crash
 
 
-@atheris.instrument_func
-def TestUploadConfigCommutativity(data):
+@atheris.instrument_func  # type: ignore[untyped-decorator]
+def TestUploadConfigCommutativity(data: bytes) -> None:
     """Property test: UploadConfig creation is deterministic."""
     fdp = atheris.FuzzedDataProvider(data)
     try:
@@ -162,8 +162,8 @@ def TestUploadConfigCommutativity(data):
         return  # Expected — not a crash
 
 
-@atheris.instrument_func
-def TestMatchesPatternWildcard(data):
+@atheris.instrument_func  # type: ignore[untyped-decorator]
+def TestMatchesPatternWildcard(data: bytes) -> None:
     """Property: wildcard pattern matches any string."""
     fdp = atheris.FuzzedDataProvider(data)
     try:
@@ -174,8 +174,8 @@ def TestMatchesPatternWildcard(data):
         return  # Expected — not a crash
 
 
-@atheris.instrument_func
-def TestMatchesPatternStarExclusion(data):
+@atheris.instrument_func  # type: ignore[untyped-decorator]
+def TestMatchesPatternStarExclusion(data: bytes) -> None:
     """Property: if the full path matches a pattern, _matches_any returns True."""
     fdp = atheris.FuzzedDataProvider(data)
     try:
@@ -187,7 +187,7 @@ def TestMatchesPatternStarExclusion(data):
         return  # Expected — not a crash
 
 
-def TestOneInput(data):
+def TestOneInput(data: bytes) -> None:
     """Dispatch fuzz input to all test functions."""
     fdp = atheris.FuzzedDataProvider(data)
     if not data:

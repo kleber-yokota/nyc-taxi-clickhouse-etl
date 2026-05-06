@@ -43,6 +43,14 @@ ignore_names = [
     "mock_500",
     "side_effect",
     "dirs",
+    "S3Ops",
+    "Body",
+    "Bucket",
+    "ContentType",
+    "Key",
+    "Config",
+    "Fileobj",
+    "name",
 ]
 
 [tool.mutmut]

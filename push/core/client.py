@@ -5,10 +5,11 @@ Merges session management and transfer configuration into a single module.
 
 from __future__ import annotations
 
-import boto3
-from boto3.s3.transfer import TransferConfig
-from botocore.exceptions import NoCredentialsError
-from typing import BinaryIO
+from typing import Any, BinaryIO
+
+import boto3  # type: ignore[import-untyped]
+from boto3.s3.transfer import TransferConfig  # type: ignore[import-untyped]
+from botocore.exceptions import NoCredentialsError  # type: ignore[import-untyped]
 
 from .ops import S3Ops
 from .ops import (
@@ -37,11 +38,11 @@ def get_s3_client(endpoint_url: str | None = None) -> S3Ops:
         S3ClientError: If AWS credentials are not available.
     """
     try:
-        config: dict = {}
+        config: dict[str, Any] = {}
         if endpoint_url:
             config["endpoint_url"] = endpoint_url
         session = boto3.session.Session()
-        return session.client("s3", **config)
+        return session.client("s3", **config)  # type: ignore[no-any-return]
     except NoCredentialsError:
         raise S3ClientError(
             "AWS credentials not found. Set AWS_ACCESS_KEY_ID and "
@@ -130,7 +131,7 @@ class S3Client:
         key: str,
         body: bytes | BinaryIO,
         content_type: str = "application/octet-stream",
-    ) -> dict:
+    ) -> dict[str, Any]:
         """Upload a single object to S3.
 
         Args:
@@ -170,7 +171,7 @@ class S3Client:
         )
         _upload_fileobj(self._client, self.bucket, key, fileobj, cfg)
 
-    def head_object(self, key: str) -> dict | None:
+    def head_object(self, key: str) -> dict[str, Any] | None:
         """Check if an object exists in S3.
 
         Args:

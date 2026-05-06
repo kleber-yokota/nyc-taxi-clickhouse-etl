@@ -10,27 +10,27 @@ from push.core.checksum import compute_content_type, compute_sha256
 class TestComputeContentType:
     """Tests for compute_content_type — kill extension mutations."""
 
-    def test_parquet(self, tmp_path: Path):
+    def test_parquet(self, tmp_path: Path) -> None:
         f = tmp_path / "test.parquet"
         f.write_bytes(b"x")
         assert compute_content_type(f) == "application/x-parquet"
 
-    def test_other(self, tmp_path: Path):
+    def test_other(self, tmp_path: Path) -> None:
         f = tmp_path / "test.csv"
         f.write_bytes(b"x")
         assert compute_content_type(f) == "application/octet-stream"
 
-    def test_uppercase(self, tmp_path: Path):
+    def test_uppercase(self, tmp_path: Path) -> None:
         f = tmp_path / "test.PARQUET"
         f.write_bytes(b"x")
         assert compute_content_type(f) == "application/x-parquet"
 
-    def test_no_extension(self, tmp_path: Path):
+    def test_no_extension(self, tmp_path: Path) -> None:
         f = tmp_path / "README"
         f.write_bytes(b"x")
         assert compute_content_type(f) == "application/octet-stream"
 
-    def test_json(self, tmp_path: Path):
+    def test_json(self, tmp_path: Path) -> None:
         f = tmp_path / "test.json"
         f.write_bytes(b"x")
         assert compute_content_type(f) == "application/octet-stream"
@@ -39,7 +39,7 @@ class TestComputeContentType:
 class TestComputeSha256:
     """Tests for compute_sha256 — kill hash mutations."""
 
-    def test_deterministic(self, tmp_path: Path):
+    def test_deterministic(self, tmp_path: Path) -> None:
         f = tmp_path / "data.parquet"
         f.write_bytes(b"hello")
         h1 = compute_sha256(f)
@@ -47,14 +47,14 @@ class TestComputeSha256:
         assert h1 == h2
         assert len(h1) == 64
 
-    def test_different_content(self, tmp_path: Path):
+    def test_different_content(self, tmp_path: Path) -> None:
         f1 = tmp_path / "a.parquet"
         f2 = tmp_path / "b.parquet"
         f1.write_bytes(b"x")
         f2.write_bytes(b"y")
         assert compute_sha256(f1) != compute_sha256(f2)
 
-    def test_known_hash(self, tmp_path: Path):
+    def test_known_hash(self, tmp_path: Path) -> None:
         import hashlib
         f = tmp_path / "data.parquet"
         content = b"hello"
@@ -63,7 +63,7 @@ class TestComputeSha256:
         expected = hashlib.sha256(content).hexdigest()
         assert computed == expected
 
-    def test_large_content(self, tmp_path: Path):
+    def test_large_content(self, tmp_path: Path) -> None:
         import hashlib as _hashlib
         f = tmp_path / "large.parquet"
         data = b"chunk_" * 1000

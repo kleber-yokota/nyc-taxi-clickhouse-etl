@@ -71,7 +71,7 @@ class PushState:
     """
 
     state_path: Path
-    _data: dict = field(default_factory=dict, repr=False)
+    _data: dict[str, dict[str, str]] = field(default_factory=dict, repr=False)
 
     def __post_init__(self) -> None:
         """Load existing state from disk if file exists."""
@@ -105,7 +105,8 @@ class PushState:
         entry = self._data.get(local_path)
         if entry is None:
             return False
-        return entry.get("checksum") == checksum
+        file_checksum: str | None = entry.get("checksum")
+        return file_checksum == checksum
 
     def record_push(self, local_path: str, s3_key: str, checksum: str) -> None:
         """Record that a file has been pushed.

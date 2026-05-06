@@ -48,12 +48,14 @@ def upload(
     uploaded = 0
     skipped = 0
     failed = 0
+    uploaded_files: list[str] = []
 
     for local_path in files:
         try:
             status = _upload_one(local_path, data_dir, client, state, config)
             if status == "uploaded":
                 uploaded += 1
+                uploaded_files.append(str(local_path.relative_to(data_dir)))
             elif status == "skipped":
                 skipped += 1
         except Exception as e:
@@ -61,7 +63,13 @@ def upload(
             failed += 1
 
     state.save()
-    return PushResult(uploaded=uploaded, skipped=skipped, failed=failed, total=total)
+    return PushResult(
+        uploaded=uploaded,
+        skipped=skipped,
+        failed=failed,
+        total=total,
+        uploaded_files=uploaded_files,
+    )
 
 
 def _upload_one(

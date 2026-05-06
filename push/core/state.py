@@ -11,12 +11,21 @@ PARQUET_EXTENSION = ".parquet"
 
 @dataclass(frozen=True)
 class PushResult:
-    """Result of a push operation."""
+    """Result of a push operation.
+
+    Args:
+        uploaded: Number of files successfully uploaded.
+        skipped: Number of files skipped (already pushed).
+        failed: Number of files that failed to upload.
+        total: Total number of files processed.
+        uploaded_files: List of relative file paths that were uploaded.
+    """
 
     uploaded: int = 0
     skipped: int = 0
     failed: int = 0
     total: int = 0
+    uploaded_files: list[str] = field(default_factory=list)
 
 
 @dataclass(frozen=True)

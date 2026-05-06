@@ -20,10 +20,12 @@ NYC TLC CDN → extract → data/*.parquet → push → Garage (S3) → ClickHou
 ### Entry point
 
 ```bash
-uv run python main.py
+uv run python main.py              # backward compat, delegates to etl.Orchestrator
+uv run python -m etl               # incremental mode (default)
+ETL_MODE=full uv run python -m etl # full mode (reset everything)
 ```
 
-Runs `extract` (download parquet files) → `push` (upload to Garage + delete local files).
+Runs `extract` (download parquet files) → `push` (upload to Garage + delete local files) → manifest update.
 
 ---
 
@@ -31,6 +33,7 @@ Runs `extract` (download parquet files) → `push` (upload to Garage + delete lo
 
 | Module | Responsibility | Entry Point | Docs |
 |---|---|---|---|
+| `etl` | Orchestrate extract → push with shared manifest | `python -m etl` | [OVERVIEW](etl/OVERVIEW.md) · [DETAILS](etl/DETAILS.md) |
 | `extract` | Download NYC TLC parquet files from CDN | `extract.core.downloader.run()` | [OVERVIEW](extract/OVERVIEW.md) · [DETAILS](extract/DETAILS.md) |
 | `push` | Upload parquet files to S3-compatible storage | `push.core.runner.upload_from_env()` | [OVERVIEW](push/OVERVIEW.md) · [DETAILS](push/DETAILS.md) |
 | `transform` | Clean, normalize, transform raw data | — | (not implemented) |
@@ -41,15 +44,20 @@ Runs `extract` (download parquet files) → `push` (upload to Garage + delete lo
 ## Module dependencies
 
 ```
-main.py → extract.core.downloader.run()
-main.py → push.core.runner.upload_from_env()
+main.py → etl.Orchestrator.run()
+etl → extract.downloader.downloader.run()
+etl → push.core.runner.upload_from_env()
+etl → push.core.push_manifest.list_s3_objects  # rebuild manifest
+etl → .push_manifest.json  # write (authority)
+push → PushedEntry[]       # data for manifest
+push → S3 (list_objects)   # manifest rebuild
 
 extract → (external: NYC TLC CDN)
 extract → push (reads .push_manifest.json, read-only)
 push → (external: Garage/S3 via boto3)
 ```
 
-`extract` and `push` share the `data/` directory. `extract` reads `.push_manifest.json` (written by `push`) to skip downloading files already in S3. `push` never reads from `extract`.
+`extract` and `push` share the `data/` directory. `extract` reads `.push_manifest.json` (written by orchestrator) to skip downloading files already in S3. `push` never reads from `extract`. The orchestrator is the authority on the manifest: it creates, updates, and saves it, delegating execution to `extract` and `push`.
 
 ---
 
@@ -62,6 +70,9 @@ push → (external: Garage/S3 via boto3)
 | Naming | `<type>_tripdata_<year>-<month>.parquet` | Matches by glob `*.parquet` |
 | State files | `data/.download_state.json` | `data/.push_state.json` |
 | Push manifest | Writes `.push_manifest.json` with uploaded file list | Reads manifest to skip already-uploaded files |
+| S3 objects (neutral) | — | `push.list_s3_objects()` → `S3Object[key]` |
+| Pushed entries (neutral) | — | `push.upload()` → `PushedEntry[]` |
+| Orchestrator config | `etl.ETLConfig` | `etl.Orchestrator` |
 
 ---
 

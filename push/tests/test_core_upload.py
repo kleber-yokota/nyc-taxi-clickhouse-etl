@@ -29,6 +29,29 @@ class TestPushFresh:
         assert result.failed == 0
         assert result.total == 3
 
+    def test_push_fresh_files_collected(self, sample_files: Path):
+        client = FakeS3Client(bucket="b", prefix="data")
+        state = PushState(sample_files / ".push_state.json")
+
+        result = upload(sample_files, client, state)
+
+        assert len(result.uploaded_files) == 3
+        relative_paths = {p for p in result.uploaded_files}
+        assert "yellow/yellow_tripdata_2024-01.parquet" in relative_paths
+        assert "yellow/yellow_tripdata_2024-02.parquet" in relative_paths
+        assert "green/green_tripdata_2024-01.parquet" in relative_paths
+
+    def test_push_skip_files_not_in_uploaded_list(self, sample_files: Path):
+        client = FakeS3Client(bucket="b", prefix="data")
+        state = PushState(sample_files / ".push_state.json")
+
+        upload(sample_files, client, state)
+        result = upload(sample_files, client, state)
+
+        assert result.uploaded == 0
+        assert result.skipped == 3
+        assert result.uploaded_files == []
+
     def test_push_keys_use_prefix(self, sample_files: Path):
         client = FakeS3Client(bucket="b", prefix="data")
         state = PushState(sample_files / ".push_state.json")
@@ -201,3 +224,16 @@ class TestPushErrors:
         assert result.uploaded == 0
         assert result.total == 0
         assert any("Data directory does not exist" in record.message for record in caplog.records)
+
+    def test_push_uploaded_files_mutant_killing(self, sample_files: Path):
+        """Kills mutants that remove uploaded_files assignment or the field."""
+        client = FakeS3Client(bucket="b", prefix="data")
+        state = PushState(sample_files / ".push_state.json")
+
+        result = upload(sample_files, client, state)
+
+        assert hasattr(result, "uploaded_files")
+        assert isinstance(result.uploaded_files, list)
+        assert len(result.uploaded_files) == result.uploaded
+        assert all(isinstance(p, str) for p in result.uploaded_files)
+        assert all("/" in p for p in result.uploaded_files)

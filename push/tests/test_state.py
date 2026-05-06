@@ -4,7 +4,10 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from push.core.state import PushResult, PushState, UploadConfig
+from push.core.state import PushedEntry
+from push.core.state import PushResult
+from push.core.state import PushState
+from push.core.state import UploadConfig
 
 
 class TestPushResult:
@@ -85,6 +88,55 @@ class TestUploadConfig:
         config = UploadConfig(overwrite=True)
         try:
             config.overwrite = False  # type: ignore[call-arg]
+            assert False, "Should have raised"
+        except Exception:
+            pass
+
+
+class TestPushedEntry:
+    """Tests for PushedEntry dataclass."""
+
+    def test_pushed_entry_creation(self):
+        entry = PushedEntry(
+            rel_path="yellow/file.parquet",
+            s3_key="data/yellow/file.parquet",
+            checksum="abc123",
+        )
+        assert entry.rel_path == "yellow/file.parquet"
+        assert entry.s3_key == "data/yellow/file.parquet"
+        assert entry.checksum == "abc123"
+
+    def test_pushed_entry_is_frozen(self):
+        entry = PushedEntry(rel_path="f", s3_key="k", checksum="c")
+        try:
+            entry.rel_path = "new"  # type: ignore[call-arg]
+            assert False, "Should have raised"
+        except Exception:
+            pass
+
+
+class TestPushResultUploadedEntries:
+    """Tests for PushResult.uploaded_entries field."""
+
+    def test_uploaded_entries_default_empty(self):
+        r = PushResult()
+        assert r.uploaded_entries == []
+
+    def test_uploaded_entries_populated(self):
+        entries = [
+            PushedEntry(rel_path="yellow/file.parquet", s3_key="data/yellow/file.parquet", checksum="abc"),
+            PushedEntry(rel_path="green/file.parquet", s3_key="data/green/file.parquet", checksum="def"),
+        ]
+        r = PushResult(uploaded=2, uploaded_entries=entries)
+        assert r.uploaded == 2
+        assert len(r.uploaded_entries) == 2
+        assert r.uploaded_entries[0].rel_path == "yellow/file.parquet"
+        assert r.uploaded_entries[0].checksum == "abc"
+
+    def test_uploaded_entries_immutable(self):
+        r = PushResult(uploaded=1, uploaded_entries=[PushedEntry(rel_path="f", s3_key="k", checksum="c")])
+        try:
+            r.uploaded_entries.append(PushedEntry(rel_path="x", s3_key="x", checksum="x"))  # type: ignore[union-attr]
             assert False, "Should have raised"
         except Exception:
             pass

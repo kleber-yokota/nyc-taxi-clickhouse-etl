@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import logging
 from pathlib import Path
 
 import pytest
@@ -18,10 +19,13 @@ from extract.core.push_manifest import (
 class TestLoadPushManifest:
     """Tests for load_push_manifest()."""
 
-    def test_returns_empty_dict_when_file_missing(self, tmp_path: Path) -> None:
+    def test_returns_empty_dict_when_file_missing(self, tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
         """Should return empty dict when manifest file does not exist."""
-        result = load_push_manifest(tmp_path)
+        with caplog.at_level(logging.DEBUG):
+            result = load_push_manifest(tmp_path)
+
         assert result == {}
+        assert "Push manifest not found" in caplog.text
 
     def test_raises_on_invalid_json(self, tmp_path: Path) -> None:
         """Should raise PushManifestError when manifest contains invalid JSON."""
@@ -70,6 +74,80 @@ class TestLoadPushManifest:
 
         result = load_push_manifest(tmp_path)
         assert result == {}
+
+    def test_loads_valid_manifest_logs_entry_count(self, tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
+        """Should log the number of entries in the manifest."""
+        manifest_data = {
+            "yellow/yellow_tripdata_2024-01.parquet": {
+                "s3_key": "data/yellow/yellow_tripdata_2024-01.parquet",
+                "checksum": "abc123",
+            },
+            "green/green_tripdata_2024-02.parquet": {
+                "s3_key": "data/green/green_tripdata_2024-02.parquet",
+                "checksum": "def456",
+            },
+        }
+        manifest_path = tmp_path / PUSH_MANIFEST_FILE
+        manifest_path.write_text(json.dumps(manifest_data))
+
+        with caplog.at_level(logging.DEBUG):
+            result = load_push_manifest(tmp_path)
+
+        assert result == manifest_data
+        assert "Loaded push manifest with 2 entries" in caplog.text
+
+    def test_loads_empty_manifest_logs_zero_entries(self, tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
+        """Should log zero entries for empty manifest."""
+        manifest_path = tmp_path / PUSH_MANIFEST_FILE
+        manifest_path.write_text("{}")
+
+        with caplog.at_level(logging.DEBUG):
+            result = load_push_manifest(tmp_path)
+
+        assert result == {}
+        assert "Loaded push manifest with 0 entries" in caplog.text
+
+    def test_raises_on_string_manifest(self, tmp_path: Path) -> None:
+        """Should raise PushManifestError when manifest is a string."""
+        manifest_path = tmp_path / PUSH_MANIFEST_FILE
+        manifest_path.write_text('"just a string"')
+
+        with pytest.raises(PushManifestError, match="^Push manifest must be a dict"):
+            load_push_manifest(tmp_path)
+
+    def test_raises_on_number_manifest(self, tmp_path: Path) -> None:
+        """Should raise PushManifestError when manifest is a number."""
+        manifest_path = tmp_path / PUSH_MANIFEST_FILE
+        manifest_path.write_text("42")
+
+        with pytest.raises(PushManifestError, match="^Push manifest must be a dict"):
+            load_push_manifest(tmp_path)
+
+    def test_raises_on_null_manifest(self, tmp_path: Path) -> None:
+        """Should raise PushManifestError when manifest is null."""
+        manifest_path = tmp_path / PUSH_MANIFEST_FILE
+        manifest_path.write_text("null")
+
+        with pytest.raises(PushManifestError, match="^Push manifest must be a dict"):
+            load_push_manifest(tmp_path)
+
+    def test_raises_on_bool_manifest(self, tmp_path: Path) -> None:
+        """Should raise PushManifestError when manifest is a boolean."""
+        manifest_path = tmp_path / PUSH_MANIFEST_FILE
+        manifest_path.write_text("true")
+
+        with pytest.raises(PushManifestError, match="^Push manifest must be a dict"):
+            load_push_manifest(tmp_path)
+
+    def test_json_decode_error_message_contains_details(self, tmp_path: Path) -> None:
+        """Should include JSON decode error details in PushManifestError."""
+        manifest_path = tmp_path / PUSH_MANIFEST_FILE
+        manifest_path.write_text('{"key": }')
+
+        with pytest.raises(PushManifestError) as exc_info:
+            load_push_manifest(tmp_path)
+
+        assert "Expecting" in str(exc_info.value) or "Invalid" in str(exc_info.value) or "JSON" in str(exc_info.value)
 
 
 class TestIsPushedInManifest:

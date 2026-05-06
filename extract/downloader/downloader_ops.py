@@ -47,7 +47,7 @@ def should_skip_download(
             return True
         state.save(entry.url, "")
 
-    if push_manifest is not None and is_pushed_in_manifest(push_manifest, entry.target_dir, entry.year, entry.month):
+    if is_pushed_in_manifest(push_manifest, entry.target_dir, entry.year, entry.month):
         logger.info("Skipping (already in S3): %s", entry.url)
         return True
 

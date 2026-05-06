@@ -8,8 +8,10 @@ from pathlib import Path
 import pytest
 import responses
 
+import pytest
+
 from extract.core.catalog import Catalog
-from extract.core.push_manifest import PUSH_MANIFEST_FILE
+from extract.core.push_manifest import PUSH_MANIFEST_FILE, PushManifestError
 from extract.downloader.downloader import run
 
 
@@ -209,8 +211,8 @@ class TestDownloadWithManifest:
         assert result["skipped"] == 0
 
     @responses.activate
-    def test_manifest_with_invalid_json(self, download_dir: Path) -> None:
-        """Invalid manifest file should be treated as empty."""
+    def test_manifest_with_invalid_json_raises(self, download_dir: Path) -> None:
+        """Invalid manifest file should raise PushManifestError."""
         catalog = Catalog(types=["yellow"], from_year=2024, to_year=2024, max_entries=3)
         entries = catalog.generate()
 
@@ -230,15 +232,12 @@ class TestDownloadWithManifest:
         manifest_path = download_dir / PUSH_MANIFEST_FILE
         manifest_path.write_text("not valid json")
 
-        result = run(
-            data_dir=download_dir,
-            types=["yellow"],
-            from_year=2024,
-            to_year=2024,
-            mode="full",
-            max_entries=3,
-        )
-
-        # Should download all (invalid manifest treated as empty)
-        assert result["downloaded"] == 3
-        assert result["failed"] == 0
+        with pytest.raises(PushManifestError, match="^Push manifest contains invalid JSON"):
+            run(
+                data_dir=download_dir,
+                types=["yellow"],
+                from_year=2024,
+                to_year=2024,
+                mode="full",
+                max_entries=3,
+            )

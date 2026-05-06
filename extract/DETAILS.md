@@ -44,10 +44,10 @@ Downloads TLC parquet files according to the specified filters.
 
 ```python
 def load_push_manifest(data_dir: Path) -> dict:
-def is_pushed_in_manifest(manifest: dict, data_type: str, year: int, month: int) -> bool:
+def is_pushed_in_manifest(manifest: dict | None, data_type: str, year: int, month: int) -> bool:
 ```
 
-Read-only access to the push manifest (`.push_manifest.json`). Never writes to the manifest. `load_push_manifest()` returns empty dict if file doesn't exist. `is_pushed_in_manifest()` checks if a specific catalog entry is already in S3.
+Read-only access to the push manifest (`.push_manifest.json`). Never writes to the manifest. `load_push_manifest()` returns empty dict if file doesn't exist. `is_pushed_in_manifest()` accepts `None` and returns `False` — no need for caller to check `None` separately.
 
 **Manifest format:**
 

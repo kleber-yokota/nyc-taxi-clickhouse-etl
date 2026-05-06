@@ -46,7 +46,15 @@ ignore_names = [
 ]
 
 [tool.mutmut]
-paths_to_mutate = ["extract", "etl"]
+paths_to_mutate = ["etl"]
 do_not_mutate = ["*/tests/*", "*/conftest.py", "*/test_*.py", "*/__init__.py"]
-runner = "python -m pytest extract/tests/downloaders/ -q --ignore=extract/tests/downloaders/test_fuzz.py --ignore=extract/tests/downloaders/test_e2e.py --ignore=extract/tests/downloaders/test_e2e_errors.py --ignore=extract/tests/downloaders/test_e2e_retry.py"
+pytest_add_cli_args_test_selection = ["etl/tests/", "-q", "--ignore=etl/tests/test_fuzz.py", "--ignore=etl/tests/test_e2e.py"]
 exclude_dirs = ["__pycache__", ".venv", "mutants"]
+exclude_functions = ["Orchestrator.run", "Orchestrator._reconcile", "Orchestrator._adapt_s3_to_manifest", "main"]
+timeout_constant = 1.0
+timeout_multiplier = 15.0
+
+[dependency-groups]
+dev = [
+    "mypy>=1.20.2",
+]

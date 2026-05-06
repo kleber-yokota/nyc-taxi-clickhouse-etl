@@ -11,14 +11,16 @@ from __future__ import annotations
 import json
 import logging
 from pathlib import Path
+from typing import Any
 
 from extract.core.push_manifest import PushManifestError
+from push.core.state import PushedEntry
 
 logger = logging.getLogger(__name__)
 PUSH_MANIFEST_FILE = ".push_manifest.json"
 
 
-def load(data_dir: Path) -> dict:
+def load(data_dir: Path) -> dict[str, Any]:
     """Load the push manifest from disk.
 
     Args:
@@ -33,7 +35,6 @@ def load(data_dir: Path) -> dict:
     """
     manifest_path = data_dir / PUSH_MANIFEST_FILE
     if not manifest_path.exists():
-        logger.debug("Push manifest not found: %s", manifest_path)
         return {}
 
     try:
@@ -53,11 +54,10 @@ def load(data_dir: Path) -> dict:
             f"Push manifest must be a dict, got {type(manifest).__name__}"
         )
 
-    logger.debug("Loaded push manifest with %d entries", len(manifest))
     return manifest
 
 
-def save(data_dir: Path, manifest: dict) -> None:
+def save(data_dir: Path, manifest: dict[str, Any]) -> None:
     """Persist the manifest to disk.
 
     Args:
@@ -68,10 +68,9 @@ def save(data_dir: Path, manifest: dict) -> None:
     manifest_path.parent.mkdir(parents=True, exist_ok=True)
     with open(manifest_path, "w") as f:
         json.dump(manifest, f, indent=2)
-    logger.info("Saved push manifest with %d entries", len(manifest))
 
 
-def update_from_entries(manifest: dict, entries: list) -> None:
+def update_from_entries(manifest: dict[str, Any], entries: list[PushedEntry]) -> None:
     """Update manifest with uploaded entries from push.
 
     Args:

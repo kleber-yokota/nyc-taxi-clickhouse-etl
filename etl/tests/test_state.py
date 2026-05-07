@@ -165,3 +165,70 @@ def test_upload_metrics_section_keys():
     state.mark_upload_done(uploaded=4, uploaded_files=["x.parquet"], duration=1.5)
     section = state._upload_metrics_section()
     assert set(section.keys()) == {"duration_seconds", "uploaded", "uploaded_files"}
+
+
+def test_complete_preserves_extract_and_upload_metrics():
+    state = PipelineState()
+    state.mark_extract_done(downloaded=10, skipped=2, failed=0, total=12, duration=5.0)
+    state.mark_upload_done(uploaded=8, uploaded_files=["a.parquet"], duration=3.0)
+    state.complete()
+    assert state._metrics.extract.duration_seconds == 5.0
+    assert state._metrics.extract.downloaded == 10
+    assert state._metrics.upload.duration_seconds == 3.0
+    assert state._metrics.upload.uploaded == 8
+    assert state._metrics.upload.uploaded_files == ["a.parquet"]
+    assert state._metrics.total_duration_seconds > 0
+
+
+def test_fail_sets_total_duration_from_started():
+    state = PipelineState()
+    state.start()
+    time.sleep(0.02)
+    state.fail("error")
+    assert state._metrics.total_duration_seconds > 0
+    assert state._metrics.extract.duration_seconds == 0.0
+    assert state._metrics.upload.uploaded == 0
+
+
+def test_mark_upload_done_calculates_total_duration():
+    state = PipelineState()
+    state.start()
+    time.sleep(0.02)
+    state.mark_upload_done(uploaded=5, uploaded_files=["x.parquet"], duration=1.0)
+    assert state._metrics.total_duration_seconds > 0
+    assert state._metrics.upload.duration_seconds == 1.0
+
+
+def test_mark_extract_done_creates_stage_metrics():
+    """Verify mark_extract_done creates StageMetrics with all fields."""
+    state = PipelineState()
+    state.mark_extract_done(downloaded=10, skipped=2, failed=1, total=13, duration=5.5)
+    m = state._metrics.extract
+    assert isinstance(m, StageMetrics)
+    assert m.duration_seconds == 5.5
+    assert m.downloaded == 10
+    assert m.skipped == 2
+    assert m.failed == 1
+    assert m.total == 13
+
+
+def test_mark_upload_done_creates_stage_metrics():
+    """Verify mark_upload_done creates StageMetrics with all fields."""
+    state = PipelineState()
+    state.mark_upload_done(uploaded=8, uploaded_files=["a.parquet"], duration=3.2)
+    m = state._metrics.upload
+    assert isinstance(m, StageMetrics)
+    assert m.duration_seconds == 3.2
+    assert m.uploaded == 8
+    assert m.uploaded_files == ["a.parquet"]
+
+
+def test_complete_creates_pipeline_metrics():
+    """Verify complete creates PipelineMetrics with extract/upload preserved."""
+    state = PipelineState()
+    state.mark_extract_done(downloaded=10, total=10, duration=5.0)
+    state.mark_upload_done(uploaded=8, uploaded_files=["a.parquet"], duration=3.0)
+    state.complete()
+    assert isinstance(state._metrics, PipelineMetrics)
+    assert isinstance(state._metrics.extract, StageMetrics)
+    assert isinstance(state._metrics.upload, StageMetrics)

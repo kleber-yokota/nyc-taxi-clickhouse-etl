@@ -14,6 +14,7 @@ def run(
     to_year: int | None = None,
     mode: str = "incremental",
     max_entries: int | None = None,
+    push_manifest: dict | None = None,
 ) -> dict[str, int]:
 ```
 
@@ -24,6 +25,7 @@ def run(
 - `to_year`: Ending year (inclusive). Defaults to current year.
 - `mode`: `"incremental"` or `"full"`.
 - `max_entries`: Optional limit for testing.
+- `push_manifest`: Push manifest dict for S3 skip check. If None, loads from `data/.push_manifest.json`.
 
 **Returns:** `{"downloaded": int, "skipped": int, "failed": int, "total": int}`
 
@@ -76,12 +78,20 @@ def should_skip_download(
     state: State,
     known_missing: KnownMissing,
     data_dir: Path,
+    push_manifest: dict | None = None,
 ) -> bool:
 ```
 
 Checks if a download should be skipped.
 
-**Returns:** `True` if the download should be skipped.
+**Args:**
+- `entry`: Catalog entry to check.
+- `state`: Download state.
+- `known_missing`: Known missing URLs tracker.
+- `data_dir`: Data directory path.
+- `push_manifest`: Push manifest dict for S3 skip check.
+
+**Returns:** `True` if the download should be skipped (already downloaded, known missing, or already in S3).
 
 ---
 
@@ -194,3 +204,4 @@ extract/tests/downloaders/
 |---|---|---|
 | 2025-05-05 | Split downloader.py → downloader.py + downloader_actions.py | Meet ≤150 LoC limit (§1) |
 | 2025-05-05 | Renamed generic variables | Meet naming rules (§5) |
+| 2025-05-05 | Add push_manifest parameter to run() and should_skip_download() | Enable S3 skip check via .push_manifest.json (Plano 1) |

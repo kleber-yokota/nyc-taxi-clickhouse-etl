@@ -1,4 +1,4 @@
-"""Tests for should_skip_download and process_entry in downloader_ops module."""
+"""Tests for should_skip_download and process_entry in ops module."""
 
 from __future__ import annotations
 

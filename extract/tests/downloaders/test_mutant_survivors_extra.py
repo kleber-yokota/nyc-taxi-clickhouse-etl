@@ -1,4 +1,4 @@
-"""Tests targeting mutmut survivors in downloader_ops and downloader_util - extra tests."""
+"""Tests targeting mutmut survivors in ops and utils - extra tests."""
 
 from __future__ import annotations
 

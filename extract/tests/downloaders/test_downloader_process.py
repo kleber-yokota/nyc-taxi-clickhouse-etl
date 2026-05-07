@@ -1,4 +1,4 @@
-"""Tests for _process_entry function in downloader_ops module."""
+"""Tests for _process_entry function in ops module."""
 
 from __future__ import annotations
 

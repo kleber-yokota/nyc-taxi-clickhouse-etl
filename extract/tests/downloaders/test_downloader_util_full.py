@@ -1,4 +1,4 @@
-"""Tests for downloader_util functions (backup, cleanup, safe_unlink, error handlers)."""
+"""Tests for utils functions (backup, cleanup, safe_unlink, error handlers)."""
 
 from __future__ import annotations
 

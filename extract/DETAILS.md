@@ -14,6 +14,7 @@ def run(
     to_year: int | None = None,
     mode: str = "incremental",
     max_entries: int | None = None,
+    push_manifest: dict | None = None,
 ) -> dict[str, int]:
 ```
 
@@ -26,6 +27,7 @@ Downloads TLC parquet files according to the specified filters.
 - `to_year`: Ending year (inclusive). Defaults to current year.
 - `mode`: `"incremental"` (skip downloaded) or `"full"` (reset state).
 - `max_entries`: Optional limit on entries for testing.
+- `push_manifest`: Push manifest dict for S3 skip check. If None, loads from `data/.push_manifest.json`.
 
 **Returns:**
 - `dict[str, int]` with keys: `downloaded`, `skipped`, `failed`, `total`.
@@ -35,6 +37,37 @@ Downloads TLC parquet files according to the specified filters.
 - Creates `data/errors/download_errors.log` with error entries
 - Downloads files to `data/{type}/{type}_tripdata_{year}-{month}.parquet`
 - Creates `data/known_missing.txt` with 404 URLs
+
+---
+
+### `extract.core.push_manifest`
+
+```python
+def load_push_manifest(data_dir: Path) -> dict:
+def is_pushed_in_manifest(manifest: dict | None, data_type: str, year: int, month: int) -> bool:
+```
+
+Read-only access to the push manifest (`.push_manifest.json`). Never writes to the manifest. `load_push_manifest()` returns empty dict if file doesn't exist. `is_pushed_in_manifest()` accepts `None` and returns `False` — no need for caller to check `None` separately.
+
+**Manifest format:**
+
+```json
+{
+  "fhv/fhv_tripdata_2024-01.parquet": {
+    "s3_key": "data/fhv/fhv_tripdata_2024-01.parquet",
+    "checksum": "a1b2c3d4..."
+  },
+  "yellow/yellow_tripdata_2024-01.parquet": {
+    "s3_key": "data/yellow/yellow_tripdata_2024-01.parquet",
+    "checksum": "d4e5f6a7..."
+  }
+}
+```
+
+- Keys are relative paths in `{data_type}/{filename}.parquet` format
+- Each value has `s3_key` and `checksum` fields
+- Invalid or missing manifest → treated as empty (no files skipped)
+- Path matching uses relative path: `{data_type}/{filename}` (e.g., `yellow/yellow_tripdata_2024-01.parquet`)
 
 ---
 
@@ -251,3 +284,4 @@ extract/tests/
 | 2025-05-05 | Split downloader.py into downloader.py + downloader_actions.py | Meet ≤150 LoC limit (§1) |
 | 2025-05-05 | Split test files >200 lines into multiple files | Meet ≤200 LoC limit (§1) |
 | 2025-05-05 | Renamed generic variables (data→state_data, result→download_result) | Meet naming rules (§5) |
+| 2025-05-05 | Add push_manifest module and manifest support to download loop | Plano 1: enable S3 skip check (ETL Orchestrator) |

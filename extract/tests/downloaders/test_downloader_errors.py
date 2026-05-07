@@ -1,4 +1,4 @@
-"""Tests for handle_download_error in downloader_download module."""
+"""Tests for handle_download_error in download module."""
 
 from __future__ import annotations
 

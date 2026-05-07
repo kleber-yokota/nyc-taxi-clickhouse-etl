@@ -8,6 +8,7 @@ from pathlib import Path
 from extract.downloader.download import download_and_verify
 from extract.downloader.download import handle_download_error
 from extract.core.known_missing import KnownMissing
+from extract.core.push_manifest import is_pushed_in_manifest
 from extract.core.state import CatalogEntry
 from extract.core.state_manager import State
 
@@ -19,6 +20,7 @@ def should_skip_download(
     state: State,
     known_missing: KnownMissing,
     data_dir: Path,
+    push_manifest: dict | None = None,
 ) -> bool:
     """Check if a download should be skipped.
 
@@ -27,6 +29,7 @@ def should_skip_download(
         state: Download state tracker.
         known_missing: Known missing URLs tracker.
         data_dir: Base data directory.
+        push_manifest: Push manifest dict for S3 skip check.
 
     Returns:
         True if the download should be skipped.
@@ -41,6 +44,10 @@ def should_skip_download(
             return True
         state.save(entry.url, "")
 
+    if is_pushed_in_manifest(push_manifest, entry.target_dir, entry.year, entry.month):
+        logger.info("Skipping (already in S3): %s", entry.url)
+        return True
+
     return False
 
 
@@ -52,6 +59,7 @@ def process_entry(
     downloaded: int,
     skipped: int,
     failed: int,
+    push_manifest: dict | None = None,
 ) -> tuple[int, int, int]:
     """Process a single catalog entry.
 
@@ -63,11 +71,12 @@ def process_entry(
         downloaded: Current download count.
         skipped: Current skip count.
         failed: Current failure count.
+        push_manifest: Push manifest dict for S3 skip check.
 
     Returns:
         Updated (downloaded, skipped, failed) counts.
     """
-    if should_skip_download(entry, state, known_missing, data_dir):
+    if should_skip_download(entry, state, known_missing, data_dir, push_manifest):
         skipped += 1
         return downloaded, skipped, failed
 

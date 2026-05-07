@@ -16,6 +16,7 @@
 ```
 Catalog.generate() → ordered list of (type, year, month) entries
   → for each entry:
+    → check push manifest (already in S3?)
     → check state (already downloaded?)
     → download via HTTP with retry/interrupt handling
     → verify SHA-256 checksum
@@ -32,6 +33,44 @@ result = run(data_dir="data", types=["yellow"], from_year=2024, to_year=2024, mo
 # result: {"downloaded": 12, "skipped": 0, "failed": 0, "total": 12}
 ```
 
+### Skip files already in S3
+
+```python
+from extract.downloader.downloader import run
+
+# Automatically reads data/.push_manifest.json to skip files already uploaded to S3
+result = run(data_dir="data", types=["yellow"], from_year=2024, to_year=2024, mode="incremental")
+# If fhv_tripdata_2024-01.parquet is already in S3, it is skipped even if not downloaded locally
+```
+
+---
+
+## Push manifest format
+
+The push manifest (`.push_manifest.json`) is written by the `push` module after each upload run.
+It is read by `extract` to skip downloading files already present in S3.
+
+```json
+{
+  "fhv/fhv_tripdata_2024-01.parquet": {
+    "s3_key": "data/fhv/fhv_tripdata_2024-01.parquet",
+    "checksum": "a1b2c3d4..."
+  },
+  "yellow/yellow_tripdata_2024-01.parquet": {
+    "s3_key": "data/yellow/yellow_tripdata_2024-01.parquet",
+    "checksum": "d4e5f6a7..."
+  }
+}
+```
+
+| Key | Type | Description |
+|---|---|---|
+| `{relative_path}` | `object` | Relative path key in `{data_type}/{filename}.parquet` format |
+| `s3_key` | `string` | Full S3 key (e.g. `data/yellow/...parquet`) |
+| `checksum` | `string` | SHA-256 hex digest of the file |
+
+If the file does not exist or has an invalid format, `extract` treats it as an empty manifest (no files skipped).
+
 ---
 
 ## File structure
@@ -45,7 +84,8 @@ extract/
 │   ├── state_manager.py       # State class (checksums, error logging)
 │   ├── interrupt.py           # InterruptibleDownload (signal handling, cleanup)
 │   ├── catalog.py             # Catalog + CatalogEntry (URL generation, ordering)
-│   └── known_missing.py       # KnownMissing (404 URL tracker)
+│   ├── known_missing.py       # KnownMissing (404 URL tracker)
+│   └── push_manifest.py       # Read-only push manifest access (.push_manifest.json)
 ├── downloader/
 │   ├── __init__.py
 │   ├── downloader.py          # run() — main download orchestration (≤137 lines)

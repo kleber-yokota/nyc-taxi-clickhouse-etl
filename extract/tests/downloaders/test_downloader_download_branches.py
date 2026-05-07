@@ -1,4 +1,4 @@
-"""Tests for _fetch_content function in downloader_download module."""
+"""Tests for _fetch_content function in download module."""
 
 from __future__ import annotations
 

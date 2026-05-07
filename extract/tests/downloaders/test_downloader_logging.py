@@ -1,4 +1,4 @@
-"""Tests for _log_http_error in downloader_download module."""
+"""Tests for _log_http_error in download module."""
 
 from __future__ import annotations
 

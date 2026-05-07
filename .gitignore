@@ -52,3 +52,7 @@ Thumbs.db
 data
 .opencode
 .hypothesis
+
+# Runtime state
+.upload_state.json
+.contextrules

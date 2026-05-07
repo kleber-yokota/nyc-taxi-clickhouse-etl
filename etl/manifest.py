@@ -28,10 +28,14 @@ def load_manifest(data_dir: Path) -> dict:
 
     try:
         with open(manifest_path, "r") as f:
-            return json.load(f)
+            data = json.load(f)
     except (json.JSONDecodeError, OSError) as e:
         logger.warning("Failed to load push manifest: %s", e)
         return {}
+    if not isinstance(data, dict):
+        logger.warning("Push manifest is not a dict: %s", type(data).__name__)
+        return {}
+    return data
 
 
 def save_manifest(data_dir: Path, manifest: dict) -> None:

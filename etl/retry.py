@@ -1,19 +1,20 @@
-"""Retry policy — exponential backoff with configurable limits."""
+"""Retry policy — exponential backoff using tenacity."""
 
 from __future__ import annotations
 
 import logging
-import time
 from collections.abc import Callable
+
+from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential
 
 logger = logging.getLogger(__name__)
 
 
 class RetryPolicy:
-    """Exponential backoff retry policy.
+    """Exponential backoff retry policy using tenacity.
 
     Args:
-        max_retries: Maximum number of retry attempts (not counting the first).
+        max_retries: Maximum number of retry attempts.
         base_delay: Base delay in seconds for exponential backoff.
     """
 
@@ -34,22 +35,39 @@ class RetryPolicy:
         Raises:
             The last exception if all retries are exhausted.
         """
-        for attempt in range(self.max_retries):
-            try:
-                return operation()
-            except Exception as e:
-                if attempt < self.max_retries - 1:
-                    self._log_retry(stage_name, attempt, e)
-                    time.sleep(self.base_delay * (2 ** attempt))
-                else:
-                    logger.error("%s failed after %d attempts: %s", stage_name, self.max_retries, e)
-                    raise
-        raise RuntimeError(f"{stage_name} failed after retries")
-
-    def _log_retry(self, stage: str, attempt: int, error: Exception) -> None:
-        """Log retry attempt with exponential backoff."""
-        backoff = self.base_delay * (2 ** attempt)
-        logger.warning(
-            "%s failed (attempt %d/%d), retrying in %ds: %s",
-            stage, attempt + 1, self.max_retries, backoff, error,
+        @retry(
+            stop=stop_after_attempt(self.max_retries),
+            wait=wait_exponential(multiplier=self.base_delay, min=self.base_delay, max=60),
+            retry=retry_if_exception_type(Exception),
+            before_sleep=self._make_before_sleep(stage_name),
+            after=self._make_after(stage_name),
         )
+        def wrapped() -> object:
+            return operation()
+
+        return wrapped()
+
+    def _make_before_sleep(self, stage_name: str):
+        """Create before_sleep callback for retry."""
+        def callback(retry_state):
+            logger.warning(
+                "%s failed (attempt %d/%d), retrying in %.1fs: %s",
+                stage_name,
+                retry_state.attempt_number,
+                self.max_retries,
+                retry_state.next_action.sleep,
+                retry_state.outcome.exception(),
+            )
+        return callback
+
+    def _make_after(self, stage_name: str):
+        """Create after callback for retry."""
+        def callback(retry_state):
+            if retry_state.attempt_number == self.max_retries:
+                logger.error(
+                    "%s failed after %d attempts: %s",
+                    stage_name,
+                    self.max_retries,
+                    retry_state.outcome.exception(),
+                )
+        return callback

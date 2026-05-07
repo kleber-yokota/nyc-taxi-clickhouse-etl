@@ -1,4 +1,8 @@
-"""Push manifest CRUD — orchestrator's authority over the shared manifest."""
+"""Manifest persistence — load, save, and add entries to the push manifest.
+
+The push manifest (.push_manifest.json) tracks uploaded files with their
+S3 keys and checksums. This module handles file I/O only.
+"""
 
 from __future__ import annotations
 
@@ -58,6 +62,6 @@ def add_entry(manifest: dict, rel_path: str, s3_key: str, checksum: str) -> None
         manifest: The manifest dict to modify.
         rel_path: Relative file path (e.g. 'yellow/tripdata_2024-01.parquet').
         s3_key: Full S3 key (e.g. 'data/yellow/tripdata_2024-01.parquet').
-        checksum: SHA-256 hex digest of the file.
+        checksum: Hash hex digest of the file.
     """
     manifest[rel_path] = {"s3_key": s3_key, "checksum": checksum}

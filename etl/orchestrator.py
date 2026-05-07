@@ -10,7 +10,7 @@ from dotenv import load_dotenv
 
 from .checkpoint import save_checkpoint
 from .checkpoint_builder import CheckpointBuilder
-from .checksum import Checksum
+from .checksum_impl import ChecksumProvider, UploadChecksum
 from .config import ETLConfig
 from .manifest_updater import ManifestUpdater
 from .retry import RetryPolicy
@@ -29,11 +29,11 @@ class Orchestrator:
             config: ETL configuration. Uses defaults if None.
         """
         self.config = config or ETLConfig()
-        self.checksum = Checksum()
-        self.data_dir: Path | None = None
-        self.state: PipelineState | None = None
+        self.checksum: ChecksumProvider = UploadChecksum()
         self._retry = RetryPolicy()
         self._checkpoint_builder = CheckpointBuilder()
+        self._data_dir: Path | None = None
+        self._state: PipelineState | None = None
         self._manifest_updater: ManifestUpdater | None = None
 
     def run(self) -> dict:
@@ -46,9 +46,9 @@ class Orchestrator:
             Exception: Re-raises on unrecoverable failure.
         """
         load_dotenv()
-        self.data_dir = self._init_data_dir()
-        self.state = self._init_state()
-        self._manifest_updater = ManifestUpdater(self.data_dir, self.checksum)
+        self._data_dir = self._init_data_dir()
+        self._state = self._init_state()
+        self._manifest_updater = ManifestUpdater(self._data_dir, self.checksum)
 
         try:
             return self._run_success_path()
@@ -70,18 +70,18 @@ class Orchestrator:
 
     def _run_success_path(self) -> dict:
         """Execute the successful pipeline path."""
-        assert self.data_dir is not None
-        assert self.state is not None
-        self._execute_extract(self.state)
-        self._execute_upload(self.state)
-        self._update_manifest(self.state)
-        self.state.complete()
-        self._persist_checkpoint(self.state)
-        return self.state.result()
+        assert self._data_dir is not None
+        assert self._state is not None
+        self._execute_extract(self._state)
+        self._execute_upload(self._state)
+        self._update_manifest(self._state)
+        self._state.complete()
+        self._persist_checkpoint(self._state)
+        return self._state.result()
 
     def _execute_extract(self, state: PipelineState) -> None:
         """Run extract stage and update state."""
-        assert self.data_dir is not None
+        assert self._data_dir is not None
         logger.info("=== Extract starting (mode=%s) ===", self.config.mode)
         extract_start = time.monotonic()
         extract_result = self._retry.execute("extract", self._do_extract)
@@ -90,7 +90,7 @@ class Orchestrator:
 
     def _execute_upload(self, state: PipelineState) -> None:
         """Run upload stage and update state."""
-        assert self.data_dir is not None
+        assert self._data_dir is not None
         logger.info("=== Upload starting ===")
         upload_start = time.monotonic()
         upload_result = self._retry.execute("upload", self._do_upload)
@@ -99,11 +99,11 @@ class Orchestrator:
 
     def _do_extract(self) -> dict:
         """Execute extract operation."""
-        assert self.data_dir is not None
+        assert self._data_dir is not None
         from extract.downloader.downloader import run as extract_run
 
         return extract_run(
-            data_dir=str(self.data_dir),
+            data_dir=str(self._data_dir),
             types=list(self.config.types) if self.config.types else None,
             from_year=self.config.from_year,
             to_year=self.config.to_year,
@@ -114,7 +114,7 @@ class Orchestrator:
 
     def _do_upload(self) -> object:
         """Execute upload operation."""
-        assert self.data_dir is not None
+        assert self._data_dir is not None
         from upload.core.runner import upload_from_env
         from upload.core.state import UploadConfig
 
@@ -123,16 +123,17 @@ class Orchestrator:
             delete_after_upload=self.config.delete_after_upload,
         )
         return upload_from_env(
-            data_dir=str(self.data_dir),
+            data_dir=str(self._data_dir),
             config=upload_config,
             checksum_func=self.checksum.compute,
         )
 
     def _load_manifest(self) -> dict:
         """Load current manifest from disk."""
-        assert self.data_dir is not None
+        assert self._data_dir is not None
         from .manifest import load_manifest as _load
-        return _load(self.data_dir)
+
+        return _load(self._data_dir)
 
     def _mark_extract_done(self, state: PipelineState, result: dict, duration: float) -> None:
         """Mark extract stage as done with metrics."""
@@ -154,20 +155,28 @@ class Orchestrator:
 
     def _update_manifest(self, state: PipelineState) -> None:
         """Update manifest with checksums for uploaded files."""
+        assert self._data_dir is not None
         assert self._manifest_updater is not None
         metrics = state._metrics
         self._manifest_updater.update(metrics.upload.uploaded_files)
 
     def _persist_checkpoint(self, state: PipelineState) -> None:
         """Persist checkpoint to disk."""
-        assert self.data_dir is not None
+        assert self._data_dir is not None
         checkpoint = self._checkpoint_builder.build_success(state)
-        save_checkpoint(self.data_dir, checkpoint)
+        save_checkpoint(self._data_dir, checkpoint)
 
     def _handle_failure(self, error: Exception) -> None:
         """Handle pipeline failure by saving checkpoint."""
-        assert self.data_dir is not None
-        assert self.state is not None
-        self.state.fail(str(error))
-        checkpoint = self._checkpoint_builder.build_failure(self.state)
-        save_checkpoint(self.data_dir, checkpoint)
+        assert self._data_dir is not None
+        assert self._state is not None
+        error_msg = self._extract_error_message(error)
+        self._state.fail(error_msg)
+        checkpoint = self._checkpoint_builder.build_failure(self._state)
+        save_checkpoint(self._data_dir, checkpoint)
+
+    def _extract_error_message(self, error: Exception) -> str:
+        """Extract the root error message from a RetryError or other exception."""
+        if hasattr(error, "__cause__") and error.__cause__ is not None:
+            return str(error.__cause__)
+        return str(error)

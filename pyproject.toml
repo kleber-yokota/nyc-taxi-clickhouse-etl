@@ -24,6 +24,8 @@ dependencies = [
     "xenon>=0.9",
     "vulture>=2.0",
     "cohesion>=1.0",
+    "python-ulid>=3.1.0",
+    "tenacity>=9.1.4",
 ]
 
 [tool.hypothesis]

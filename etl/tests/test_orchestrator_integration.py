@@ -97,6 +97,8 @@ def test_run_success_path_saves_checkpoint_with_correct_data(tmp_data_dir: Path)
 # ---------------------------------------------------------------------------
 def test_run_failure_path_saves_checkpoint_with_error(tmp_data_dir: Path):
     """Verify checkpoint saved on failure has status=failed and error message."""
+    from tenacity import RetryError
+
     config = ETLConfig()
     orchestrator = Orchestrator(config)
     captured_checkpoint = None
@@ -107,9 +109,11 @@ def test_run_failure_path_saves_checkpoint_with_error(tmp_data_dir: Path):
          patch("etl.orchestrator.Path") as mock_path, \
          patch("etl.orchestrator.save_checkpoint") as mock_save:
         _setup_path_mock(mock_path, tmp_data_dir)
-        with pytest.raises(Exception, match="network timeout"):
+        with pytest.raises(RetryError) as exc_info:
             orchestrator.run()
 
+    assert isinstance(exc_info.value.__cause__, Exception)
+    assert str(exc_info.value.__cause__) == "network timeout"
     assert mock_save.call_count == 1
     captured_checkpoint = mock_save.call_args[0][1]
     assert captured_checkpoint.status == "failed"
@@ -226,7 +230,9 @@ def test_run_retries_on_upload_failure(tmp_data_dir: Path):
 # 8. test_run_extract_failure_after_retries_raises
 # ---------------------------------------------------------------------------
 def test_run_extract_failure_after_retries_raises(tmp_data_dir: Path):
-    """Verify extract raises Exception after exhausting 3 retry attempts."""
+    """Verify extract raises RetryError after exhausting 3 retry attempts."""
+    from tenacity import RetryError
+
     config = ETLConfig()
     orchestrator = Orchestrator(config)
     call_count = 0
@@ -243,9 +249,11 @@ def test_run_extract_failure_after_retries_raises(tmp_data_dir: Path):
          patch("time.sleep"), \
          patch("etl.orchestrator.save_checkpoint"):
         _setup_path_mock(mock_path, tmp_data_dir)
-        with pytest.raises(Exception, match="permanent extract failure"):
+        with pytest.raises(RetryError) as exc_info:
             orchestrator.run()
 
+    assert isinstance(exc_info.value.__cause__, Exception)
+    assert str(exc_info.value.__cause__) == "permanent extract failure"
     assert call_count == 3
 
 
@@ -253,7 +261,9 @@ def test_run_extract_failure_after_retries_raises(tmp_data_dir: Path):
 # 9. test_run_upload_failure_after_retries_raises
 # ---------------------------------------------------------------------------
 def test_run_upload_failure_after_retries_raises(tmp_data_dir: Path):
-    """Verify upload raises Exception after exhausting 3 retry attempts."""
+    """Verify upload raises RetryError after exhausting 3 retry attempts."""
+    from tenacity import RetryError
+
     config = ETLConfig()
     orchestrator = Orchestrator(config)
     call_count = 0
@@ -270,9 +280,11 @@ def test_run_upload_failure_after_retries_raises(tmp_data_dir: Path):
          patch("time.sleep"), \
          patch("etl.orchestrator.save_checkpoint"):
         _setup_path_mock(mock_path, tmp_data_dir)
-        with pytest.raises(Exception, match="permanent upload failure"):
+        with pytest.raises(RetryError) as exc_info:
             orchestrator.run()
 
+    assert isinstance(exc_info.value.__cause__, Exception)
+    assert str(exc_info.value.__cause__) == "permanent upload failure"
     assert call_count == 3
 
 

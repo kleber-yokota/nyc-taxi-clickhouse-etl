@@ -1,19 +1,21 @@
-"""Checksum provider — composes upload module's checksum.
+"""Checksum protocol — abstract interface for file checksum computation.
 
-Single source of truth: delegates to upload.core.checksum.
-Both extract and upload use orchestrator's checksum, ensuring consistency.
+The etl module defines this protocol. Other modules (extract, upload) receive
+a callable matching this protocol, so they don't depend on the etl module's
+checksum implementation.
 """
 
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Protocol
 
 
-class Checksum:
-    """Checksum provider — composes upload module's checksum.
+class ChecksumProvider(Protocol):
+    """Protocol for computing file checksums.
 
-    Delegates to upload.core.checksum for the actual computation.
-    Both extract and upload use orchestrator's checksum, ensuring consistency.
+    Any class or callable that implements this protocol can be used
+    wherever a ChecksumProvider is expected.
     """
 
     def compute(self, file_path: Path) -> str:
@@ -25,5 +27,4 @@ class Checksum:
         Returns:
             Hex digest string of the hash.
         """
-        from upload.core.checksum import compute_sha256 as _compute
-        return _compute(file_path)
+        ...

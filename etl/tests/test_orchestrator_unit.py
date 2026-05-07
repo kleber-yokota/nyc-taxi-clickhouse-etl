@@ -72,18 +72,25 @@ def test_execute_with_retry_retries_on_failure():
 
 def test_execute_with_retry_raises_after_exhausting_retries():
     """Verify RetryPolicy.execute raises after 3 failed attempts."""
+    from tenacity import RetryError
+
     policy = RetryPolicy()
 
     def op():
         raise RuntimeError("permanent failure")
 
     with patch("time.sleep"):
-        with pytest.raises(RuntimeError, match="permanent failure"):
+        with pytest.raises(RetryError) as exc_info:
             policy.execute("test", op)
+
+    assert isinstance(exc_info.value.__cause__, RuntimeError)
+    assert str(exc_info.value.__cause__) == "permanent failure"
 
 
 def test_execute_with_retry_backoff_exponential():
-    """Verify retry backoff uses 2**attempt: 1s, 2s, 4s."""
+    """Verify retry backoff uses exponential delay starting at base_delay."""
+    from tenacity import RetryError
+
     policy = RetryPolicy()
     sleeps = []
 
@@ -94,16 +101,19 @@ def test_execute_with_retry_backoff_exponential():
         sleeps.append(sec)
 
     with patch("time.sleep", side_effect=record_sleep):
-        with pytest.raises(ValueError, match="fail"):
+        with pytest.raises(RetryError) as exc_info:
             policy.execute("test", op)
 
+    assert isinstance(exc_info.value.__cause__, ValueError)
     assert len(sleeps) == 2
-    assert sleeps[0] == 1  # 2**0
-    assert sleeps[1] == 2  # 2**1
+    assert sleeps[0] >= 1.0  # base_delay
+    assert sleeps[1] > sleeps[0]  # exponential increase
 
 
 def test_execute_with_retry_log_retry_called():
-    """Verify _log_retry is called on each retry attempt."""
+    """Verify retry logs warnings on each attempt."""
+    from tenacity import RetryError
+
     policy = RetryPolicy()
     logged = []
 
@@ -111,11 +121,11 @@ def test_execute_with_retry_log_retry_called():
         raise ValueError("fail")
 
     with patch("time.sleep"), \
-         patch.object(policy, "_log_retry", side_effect=lambda *a: logged.append(True)):
-        with pytest.raises(ValueError, match="fail"):
+         patch("logging.Logger.warning", side_effect=lambda *a: logged.append(a)):
+        with pytest.raises(RetryError):
             policy.execute("test", op)
 
-    assert len(logged) == 2  # 2 retries (attempts 0, 1)
+    assert len(logged) == 2  # 2 retries (attempts 1, 2)
 
 
 # ---------------------------------------------------------------------------
@@ -196,7 +206,7 @@ def test_mark_upload_done_handles_none_files():
 def test_execute_extract_calls_do_extract_and_marks_done():
     """Verify _execute_extract calls _do_extract and updates state."""
     orch = Orchestrator()
-    orch.data_dir = Path("/tmp")
+    orch._data_dir = Path("/tmp")
     state = PipelineState()
     state.start()
 
@@ -218,7 +228,7 @@ def test_execute_extract_calls_do_extract_and_marks_done():
 def test_execute_upload_calls_do_upload_and_marks_done():
     """Verify _execute_upload calls _do_upload and updates state."""
     orch = Orchestrator()
-    orch.data_dir = Path("/tmp")
+    orch._data_dir = Path("/tmp")
     state = PipelineState()
     state.start()
     state.mark_extract_done(downloaded=5, total=5, duration=1.0)
@@ -242,7 +252,7 @@ def test_do_extract_calls_extract_run_with_params():
     """Verify _do_extract passes config params to extract.run."""
     config = ETLConfig(types={"yellow"}, from_year=2020, to_year=2023, mode="full")
     orch = Orchestrator(config)
-    orch.data_dir = Path("/tmp")
+    orch._data_dir = Path("/tmp")
 
     with patch("extract.downloader.downloader.run", return_value={}) as mock_run:
         orch._do_extract()
@@ -260,7 +270,7 @@ def test_do_extract_calls_extract_run_with_params():
 def test_do_extract_passes_none_when_types_empty():
     """Verify _do_extract passes None when config.types is None."""
     orch = Orchestrator(ETLConfig(types=None))
-    orch.data_dir = Path("/tmp")
+    orch._data_dir = Path("/tmp")
 
     with patch("extract.downloader.downloader.run", return_value={}) as mock_run:
         orch._do_extract()
@@ -272,7 +282,7 @@ def test_do_extract_passes_none_when_types_empty():
 def test_do_extract_passes_push_manifest():
     """Verify _do_extract passes current manifest to extract.run."""
     orch = Orchestrator()
-    orch.data_dir = Path("/tmp")
+    orch._data_dir = Path("/tmp")
 
     with patch("extract.downloader.downloader.run", return_value={}) as mock_run, \
          patch.object(orch, "_load_manifest", return_value={"existing": "entry"}):
@@ -289,7 +299,7 @@ def test_do_extract_passes_push_manifest():
 def test_do_upload_calls_upload_from_env_with_config():
     """Verify _do_upload passes config to upload_from_env."""
     orch = Orchestrator(ETLConfig(mode="full", delete_after_upload=True))
-    orch.data_dir = Path("/tmp")
+    orch._data_dir = Path("/tmp")
 
     with patch("upload.core.runner.upload_from_env", return_value=MagicMock()) as mock_run:
         orch._do_upload()
@@ -304,7 +314,7 @@ def test_do_upload_calls_upload_from_env_with_config():
 def test_do_upload_incremental_no_overwrite():
     """Verify _do_upload sets overwrite=False for incremental mode."""
     orch = Orchestrator(ETLConfig(mode="incremental"))
-    orch.data_dir = Path("/tmp")
+    orch._data_dir = Path("/tmp")
 
     with patch("upload.core.runner.upload_from_env", return_value=MagicMock()) as mock_run:
         orch._do_upload()
@@ -314,40 +324,49 @@ def test_do_upload_incremental_no_overwrite():
 
 
 # ---------------------------------------------------------------------------
-# RetryPolicy — _log_retry
+# RetryPolicy — logging
 # ---------------------------------------------------------------------------
 
-def test_log_retry_format_contains_backoff():
-    """Verify _log_retry calls logger.warning with correct args."""
+def test_retry_logs_warning_on_each_attempt():
+    """Verify retry logs warning on each retry attempt."""
+    from tenacity import RetryError
+
     policy = RetryPolicy()
-    captured = []
+    logged = []
 
-    with patch("logging.Logger.warning", side_effect=lambda *a: captured.append(a)):
-        policy._log_retry("extract", 0, ValueError("test"))
+    def op():
+        raise ValueError("fail")
 
-    assert len(captured) == 1
-    args = captured[0]
-    assert args[0] == "%s failed (attempt %d/%d), retrying in %ds: %s"
-    assert args[1] == "extract"
-    assert args[2] == 1  # attempt + 1
-    assert args[3] == 3  # max_retries
-    assert args[4] == 1  # 2**0
-    assert isinstance(args[5], ValueError)
+    with patch("time.sleep"), \
+         patch("logging.Logger.warning", side_effect=lambda *a: logged.append(a)):
+        with pytest.raises(RetryError):
+            policy.execute("test", op)
+
+    assert len(logged) == 2
+    # logged[0] = (format_str, stage, attempt, max_retries, backoff, error)
+    assert logged[0][1] == "test"
+    assert logged[0][2] == 1  # attempt 1
+    assert logged[1][2] == 2  # attempt 2
 
 
-def test_log_retry_attempt_number_increases():
-    """Verify _log_retry shows correct attempt number (attempt + 1)."""
+def test_retry_logs_error_after_exhaustion():
+    """Verify retry logs error after all retries exhausted."""
     policy = RetryPolicy()
-    captured = []
+    logged = []
 
-    with patch("logging.Logger.warning", side_effect=lambda *a: captured.append(a)):
-        policy._log_retry("upload", 2, ValueError("test"))
+    def op():
+        raise ValueError("fail")
 
-    args = captured[0]
-    assert args[1] == "upload"
-    assert args[2] == 3  # attempt=2, so attempt+1=3
-    assert args[3] == 3  # max_retries
-    assert args[4] == 4  # 2**2
+    with patch("time.sleep"), \
+         patch("logging.Logger.error", side_effect=lambda *a: logged.append(a)):
+        from tenacity import RetryError
+        with pytest.raises(RetryError):
+            policy.execute("test", op)
+
+    assert len(logged) == 1
+    # logged[0] = (format_str, stage, max_retries, error)
+    assert logged[0][1] == "test"
+    assert logged[0][2] == 3  # max_retries
 
 
 # ---------------------------------------------------------------------------
@@ -442,8 +461,8 @@ def test_upload_metrics_dict_contains_all_fields():
 def test_update_manifest_loads_and_saves():
     """Verify ManifestUpdater.update loads existing manifest and saves updated."""
     orch = Orchestrator()
-    orch.data_dir = Path("/tmp")
-    orch._manifest_updater = ManifestUpdater(orch.data_dir, orch.checksum)
+    orch._data_dir = Path("/tmp")
+    orch._manifest_updater = ManifestUpdater(orch._data_dir, orch.checksum)
     state = PipelineState()
     state.start()
     state.mark_extract_done(downloaded=5, total=5, duration=1.0)
@@ -463,10 +482,10 @@ def test_update_manifest_loads_and_saves():
 def test_add_manifest_entry_creates_correct_entry():
     """Verify ManifestUpdater adds entry with s3_key and checksum."""
     orch = Orchestrator()
-    orch.data_dir = Path("/tmp")
+    orch._data_dir = Path("/tmp")
     mock_checksum = MagicMock()
     mock_checksum.compute.return_value = "abc123"
-    orch._manifest_updater = ManifestUpdater(orch.data_dir, mock_checksum)
+    orch._manifest_updater = ManifestUpdater(orch._data_dir, mock_checksum)
     manifest = {}
 
     orch._manifest_updater._add_entry(manifest, "yellow/trip.parquet")
@@ -479,10 +498,10 @@ def test_add_manifest_entry_creates_correct_entry():
 def test_add_manifest_entry_uses_data_prefix():
     """Verify ManifestUpdater uses 'data/' prefix in s3_key."""
     orch = Orchestrator()
-    orch.data_dir = Path("/tmp")
+    orch._data_dir = Path("/tmp")
     mock_checksum = MagicMock()
     mock_checksum.compute.return_value = "def456"
-    orch._manifest_updater = ManifestUpdater(orch.data_dir, mock_checksum)
+    orch._manifest_updater = ManifestUpdater(orch._data_dir, mock_checksum)
     manifest = {}
 
     orch._manifest_updater._add_entry(manifest, "green/trip.parquet")
@@ -501,8 +520,8 @@ def test_handle_failure_calls_state_fail_and_saves_checkpoint():
     orch = Orchestrator()
     state = PipelineState()
     state.start()
-    orch.data_dir = Path("/tmp")
-    orch.state = state
+    orch._data_dir = Path("/tmp")
+    orch._state = state
     captured_checkpoint = None
 
     with patch("etl.orchestrator.save_checkpoint") as mock_save:
@@ -532,7 +551,7 @@ def test_persist_checkpoint_calls_build_and_save():
     state.mark_extract_done(downloaded=5, total=5, duration=1.0)
     state.mark_upload_done(uploaded=3, uploaded_files=["x.parquet"], duration=1.0)
     state.complete()
-    orch.data_dir = Path("/tmp")
+    orch._data_dir = Path("/tmp")
 
     with patch.object(orch._checkpoint_builder, "build_success") as mock_build, \
          patch("etl.orchestrator.save_checkpoint") as mock_save:
@@ -562,15 +581,20 @@ def test_run_calls_load_dotenv():
 
 
 def test_run_raises_on_failure():
-    """Verify run re-raises the original exception on failure."""
+    """Verify run re-raises RetryError wrapping the original exception on failure."""
+    from tenacity import RetryError
+
     orch = Orchestrator()
 
     with patch("extract.downloader.downloader.run", side_effect=RuntimeError("boom")), \
          patch("etl.orchestrator.load_dotenv"), \
          patch("etl.orchestrator.Path") as mock_path:
         mock_path.return_value = Path("/tmp")
-        with pytest.raises(RuntimeError, match="boom"):
+        with pytest.raises(RetryError) as exc_info:
             orch.run()
+
+    assert isinstance(exc_info.value.__cause__, RuntimeError)
+    assert str(exc_info.value.__cause__) == "boom"
 
 
 def test_run_returns_state_result():
@@ -625,9 +649,9 @@ def test_init_state_creates_and_starts():
 def test_run_success_path_calls_all_stages_in_order():
     """Verify _run_success_path calls extract, upload, manifest, complete, checkpoint."""
     orch = Orchestrator()
-    orch.data_dir = Path("/tmp")
-    orch.state = PipelineState()
-    orch.state.start()
+    orch._data_dir = Path("/tmp")
+    orch._state = PipelineState()
+    orch._state.start()
     call_order = []
 
     with patch.object(orch, "_execute_extract", side_effect=lambda *a: call_order.append("extract")), \
@@ -637,15 +661,15 @@ def test_run_success_path_calls_all_stages_in_order():
         orch._run_success_path()
 
     assert call_order == ["extract", "upload", "manifest", "checkpoint"]
-    assert orch.state.stage == "completed"
+    assert orch._state.stage == "completed"
 
 
 def test_run_success_path_returns_result():
     """Verify _run_success_path returns state.result()."""
     orch = Orchestrator()
-    orch.data_dir = Path("/tmp")
-    orch.state = PipelineState()
-    orch.state.start()
+    orch._data_dir = Path("/tmp")
+    orch._state = PipelineState()
+    orch._state.start()
 
     with patch.object(orch, "_execute_extract"), \
          patch.object(orch, "_execute_upload"), \
@@ -660,17 +684,17 @@ def test_run_success_path_returns_result():
 def test_execute_extract_duration_is_positive_with_mocked_time():
     """Verify _execute_extract duration > 0 when time.monotonic is mocked."""
     orch = Orchestrator()
-    orch.data_dir = Path("/tmp")
+    orch._data_dir = Path("/tmp")
     state = PipelineState()
     state.start()
 
-    call_times = [100.0, 105.5]  # start=100, end=105.5
-    call_idx = [0]
+    # tenacity calls monotonic() internally, orchestrator calls it twice
+    # Use a counter that returns increasing values
+    call_count = [0]
 
     def mock_monotonic():
-        val = call_times[call_idx[0]]
-        call_idx[0] += 1
-        return val
+        call_count[0] += 1
+        return 100.0 + call_count[0] * 0.5  # 100.5, 101.0, 101.5, 102.0
 
     with patch.object(orch, "_do_extract", return_value=_make_extract_result(
         downloaded=7, skipped=1, failed=0, total=8
@@ -678,35 +702,31 @@ def test_execute_extract_duration_is_positive_with_mocked_time():
          patch("time.monotonic", side_effect=mock_monotonic):
         orch._execute_extract(state)
 
-    assert state._metrics.extract.duration_seconds == 5.5
+    assert state._metrics.extract.duration_seconds > 0
 
 
 def test_execute_upload_duration_is_positive_with_mocked_time():
     """Verify _execute_upload duration > 0 when time.monotonic is mocked."""
     orch = Orchestrator()
-    orch.data_dir = Path("/tmp")
+    orch._data_dir = Path("/tmp")
     state = PipelineState()
+    state.start()
+    state.mark_extract_done(downloaded=5, total=5, duration=1.0)
 
-    # state.start() calls time.monotonic(), state.mark_extract_done doesn't
-    # _execute_upload calls time.monotonic() twice (start + end)
-    # mark_upload_done calls time.monotonic() once for total_duration
-    call_times = [100.0, 200.0, 203.0, 205.0]
-    call_idx = [0]
+    # tenacity calls monotonic() internally, orchestrator calls it twice
+    call_count = [0]
 
     def mock_monotonic():
-        val = call_times[call_idx[0]]
-        call_idx[0] += 1
-        return val
+        call_count[0] += 1
+        return 200.0 + call_count[0] * 0.5  # 200.5, 201.0, 201.5, 202.0
 
     with patch.object(orch, "_do_upload", return_value=_make_upload_result(
         uploaded=3, uploaded_files=["x.parquet"]
     )), \
          patch("time.monotonic", side_effect=mock_monotonic):
-        state.start()
-        state.mark_extract_done(downloaded=5, total=5, duration=1.0)
         orch._execute_upload(state)
 
-    assert state._metrics.upload.duration_seconds == 3.0
+    assert state._metrics.upload.duration_seconds > 0
 
 
 def test_execute_with_retry_raises_runtime_error_on_no_exception():

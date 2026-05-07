@@ -1,20 +1,25 @@
-"""Manifest updater — manages push manifest entries."""
+"""Manifest updater — adds checksums to manifest entries.
+
+Wraps manifest.py CRUD operations with checksum computation.
+"""
 
 from __future__ import annotations
 
 from pathlib import Path
 
-from .checksum import Checksum
 from .manifest import add_entry, load_manifest, save_manifest
+from .checksum_impl import ChecksumProvider
 
 
 class ManifestUpdater:
     """Updates the push manifest with uploaded file checksums.
 
-    Separates manifest management from the orchestrator.
+    Args:
+        data_dir: Path to the data directory.
+        checksum: Checksum provider for computing file hashes.
     """
 
-    def __init__(self, data_dir: Path, checksum: Checksum) -> None:
+    def __init__(self, data_dir: Path, checksum: ChecksumProvider) -> None:
         self.data_dir = data_dir
         self.checksum = checksum
 

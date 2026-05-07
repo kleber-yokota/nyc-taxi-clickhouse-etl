@@ -366,7 +366,7 @@ class TestDownloadIntegration:
 
         with patch("extract.downloader.download._fetch_content", side_effect=ValueError("unexpected failure")):
             with patch.object(state, "log_error") as mock_log:
-                with pytest.raises(ValueError, match="unexpected failure"):
-                    download_and_verify(entry, data_dir, state, known_missing)
+                result = download_and_verify(entry, data_dir, state, known_missing)
 
+        assert result == "failed"
         mock_log.assert_called_once_with(entry.url, ErrorType.UNKNOWN, "Unexpected error: ValueError")

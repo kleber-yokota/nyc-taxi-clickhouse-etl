@@ -58,32 +58,21 @@ class TestRunFunction:
         assert result["downloaded"] == 1
         assert result["total"] == 1
 
-    def test_run_with_keyboard_interrupt(self, tmp_path: Path):
-        """Test run handles KeyboardInterrupt gracefully."""
+    def test_run_with_keyboard_interrupt_propagates(self, tmp_path: Path):
+        """Test run propagates KeyboardInterrupt when process_entry raises it."""
         entries = [
             CatalogEntry("yellow", 2024, 1),
             CatalogEntry("yellow", 2024, 2),
         ]
 
-        interruptible = MagicMock()
-        interruptible.cleanup = MagicMock()
-
         with patch("extract.downloader.downloader.Catalog.generate", return_value=entries):
-            with patch(
-                "extract.downloader.downloader.InterruptibleDownload", return_value=interruptible
-            ):
-                with patch(
-                    "extract.downloader.downloader.process_entry",
-                    side_effect=KeyboardInterrupt(),
-                ):
-                    result = run(
+            with patch("extract.downloader.downloader.process_entry", side_effect=KeyboardInterrupt()):
+                with pytest.raises(KeyboardInterrupt):
+                    run(
                         data_dir=tmp_path,
                         types=["yellow"],
                         mode="incremental",
                     )
-
-        interruptible.cleanup.assert_called_once()
-        assert result["downloaded"] == 0
 
     def test_run_with_max_entries(self, tmp_path: Path):
         """Test run respects max_entries limit."""

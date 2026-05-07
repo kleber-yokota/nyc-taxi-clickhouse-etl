@@ -167,9 +167,9 @@ class TestDownloadAndVerifyRethrowsException:
             "extract.downloader.download._fetch_content",
             side_effect=RuntimeError("disk full"),
         ):
-            with pytest.raises(RuntimeError):
-                download_and_verify(entry, tmp_path, state)
+            result = download_and_verify(entry, tmp_path, state)
 
+        assert result == "failed"
         state.log_error.assert_called_once()
         args = state.log_error.call_args
         assert args[0][1] == ErrorType.UNKNOWN

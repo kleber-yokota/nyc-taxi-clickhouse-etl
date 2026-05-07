@@ -16,8 +16,8 @@ from extract.core.state import CatalogEntry, ErrorType
 class TestRunKeyboardInterrupt:
     """Kills mutant: except block body replaced with pass."""
 
-    def test_run_keyboard_interrupt_triggers_cleanup(self, tmp_path: Path):
-        """Verify run() completes gracefully when Catalog.generate raises KeyboardInterrupt."""
+    def test_run_empty_catalog_returns_zero_result(self, tmp_path: Path):
+        """Verify run() returns zero result when Catalog.generate returns empty list."""
         mock_state = MagicMock()
         mock_known_missing = MagicMock()
         mock_catalog = MagicMock()

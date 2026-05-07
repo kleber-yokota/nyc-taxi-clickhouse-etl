@@ -19,10 +19,7 @@ from extract.downloader.download import _fetch_content  # noqa: F401
 from extract.downloader.download import _log_http_error
 from extract.downloader.ops import process_entry
 from extract.downloader.ops import should_skip_download
-from extract.downloader.utils import backup_existing_file
-from extract.downloader.utils import cleanup_stale_tmp
-from extract.downloader.utils import handle_network_error as _handle_network_error
-from extract.downloader.utils import safe_unlink
+
 
 logger = logging.getLogger(__name__)
 
@@ -91,24 +88,10 @@ def _execute_download_loop(
     skipped = 0
     failed = 0
 
-    try:
-        for entry in entries:
-            downloaded, skipped, failed = process_entry(
-                entry, data_dir, state, known_missing,
-                downloaded, skipped, failed,
-            )
-    except KeyboardInterrupt:
-        _handle_interrupt(data_dir)
+    for entry in entries:
+        downloaded, skipped, failed = process_entry(
+            entry, data_dir, state, known_missing,
+            downloaded, skipped, failed,
+        )
 
     return downloaded, skipped, failed
-
-
-def _handle_interrupt(data_dir: Path) -> None:
-    """Handle keyboard interrupt by cleaning up temporary files.
-
-    Args:
-        data_dir: Base data directory for cleanup.
-    """
-    interruptible = InterruptibleDownload(data_dir)
-    interruptible.cleanup()
-    logger.info("Download interrupted by user.")

@@ -24,14 +24,14 @@
 - [x] Run fuzz and property-based tests
 
 ### Audit
-- [ ] Resolve signal handler conflict (global `signal.signal` vs `KeyboardInterrupt`)
-- [ ] Consolidate signal handlers in `interrupt.py` (singleton or module-level)
-- [ ] Fix `except Exception` re-raise without context in `download.py:70-73`
-- [ ] Verify coverage >= 85%
-- [ ] Verify Radon CC < 10, Radon MI > 70
-- [ ] Verify Xenon gates pass
-- [ ] Verify Vulture finds no dead code
-- [ ] Verify LCOM <= 2 for all classes
+- [x] Resolve signal handler conflict (global `signal.signal` vs `KeyboardInterrupt`)
+- [x] Consolidate signal handlers in `interrupt.py` (singleton or module-level)
+- [x] Fix `except Exception` re-raise without context in `download.py:70-73`
+- [x] Verify coverage >= 85%
+- [x] Verify Radon CC < 10, Radon MI > 70
+- [x] Verify Xenon gates pass
+- [x] Verify Vulture finds no dead code
+- [x] Verify LCOM <= 2 for all classes
 
 ---
 
@@ -153,12 +153,12 @@ downloader/actions.py        --> stdlib
 - `downloader_util.py:47` — `e: Exception` instead of `requests.HTTPError`
 - `downloader_download.py:79` — `entries: list` without type parameter
 - ~~`downloader_download.py:107` + `downloader_util.py:47` — Duplicate HTTP error handling logic~~ (RESOLVED: consolidated into `_log_http_error`)
-- `interrupt.py:31-32` — `signal.signal` re-registered on every instantiation
-- `downloader.py:109-110` — `KeyboardInterrupt` handler conflicts with InterruptibleDownload
-- `downloader_download.py:70-73` — `except Exception` re-raises without context
+- ~~`interrupt.py:31-32` — `signal.signal` re-registered on every instantiation~~ (RESOLVED: module-level singleton with `_ensure_signal_handler()`)
+- ~~`downloader.py:109-110` — `KeyboardInterrupt` handler conflicts with InterruptibleDownload~~ (RESOLVED: removed conflicting handler, signal handled at module level)
+- ~~`downloader_download.py:70-73` — `except Exception` re-raises without context~~ (RESOLVED: catches and returns "failed" with logging)
 - ~~`downloader_ops.py:18-20` — 3 extra blank lines~~ (RESOLVED: removed)
-- `test_interrupt_signal.py` — Duplicate of test in `test_interrupt.py`
-- `test_state.py` + `test_catalog_sha256.py` — Both test `compute_sha256`
+- ~~`test_interrupt_signal.py` — Duplicate of test in `test_interrupt.py`~~ (RESOLVED: merged)
+- ~~`test_state.py` + `test_catalog_sha256.py` — Both test `compute_sha256`~~ (RESOLVED: consolidated)
 
 **Minor:**
 - ~~All `__init__.py` files are empty (no public API exports)~~ (RESOLVED: all have `__all__` and exports)

@@ -78,31 +78,13 @@ class TestRunParameterPassing:
 
 
 class TestRunInterruptMessage:
-    """Tests that verify exact log messages in run()."""
+    """Tests that verify KeyboardInterrupt propagates from run()."""
 
-    def test_interrupt_logs_exact_message(self, tmp_path: Path, caplog: pytest.LogCaptureFixture):
-        """Verify the exact interrupt message is logged.
-
-        This kills the mutmut_73 mutant that changes the log message to uppercase.
-        """
-        caplog.set_level(logging.INFO)
+    def test_keyboard_interrupt_propagates(self, tmp_path: Path):
+        """Verify KeyboardInterrupt propagates when process_entry raises it."""
         entries = [CatalogEntry("yellow", 2024, 1)]
 
         with patch("extract.downloader.downloader.Catalog.generate", return_value=entries):
             with patch("extract.downloader.downloader.process_entry", side_effect=KeyboardInterrupt()):
-                run(data_dir=tmp_path, types=["yellow"])
-
-        messages = [record.message for record in caplog.records]
-        assert "Download interrupted by user." in messages
-
-    def test_interrupt_calls_cleanup(self, tmp_path: Path):
-        """Verify cleanup is called on interrupt."""
-        entries = [CatalogEntry("yellow", 2024, 1)]
-        interruptible = MagicMock()
-
-        with patch("extract.downloader.downloader.Catalog.generate", return_value=entries):
-            with patch("extract.downloader.downloader.InterruptibleDownload", return_value=interruptible):
-                with patch("extract.downloader.downloader.process_entry", side_effect=KeyboardInterrupt()):
+                with pytest.raises(KeyboardInterrupt):
                     run(data_dir=tmp_path, types=["yellow"])
-
-        interruptible.cleanup.assert_called_once()

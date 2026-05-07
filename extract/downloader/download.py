@@ -70,7 +70,8 @@ def download_and_verify(
     except Exception as e:
         safe_unlink(tmp_path)
         state.log_error(entry.url, ErrorType.UNKNOWN, f"Unexpected error: {type(e).__name__}")
-        raise
+        logger.exception("Unexpected error downloading %s", entry.url)
+        return "failed"
 
 
 def handle_download_error(

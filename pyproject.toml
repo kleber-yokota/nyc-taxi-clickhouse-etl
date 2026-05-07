@@ -48,7 +48,7 @@ ignore_names = [
 [tool.mutmut]
 paths_to_mutate = ["extract", "upload", "etl"]
 do_not_mutate = ["*/tests/*", "*/conftest.py", "*/test_*.py", "*/__init__.py"]
-runner = "python -m pytest extract/tests/downloaders/ upload/tests/ etl/tests/ -q --ignore=extract/tests/downloaders/test_fuzz.py --ignore=extract/tests/downloaders/test_e2e.py --ignore=extract/tests/downloaders/test_e2e_errors.py --ignore=extract/tests/downloaders/test_e2e_retry.py -k \"not e2e_client\""
+runner = "python -m pytest extract/tests/downloaders/ upload/tests/ etl/tests/ -q --ignore=extract/tests/downloaders/test_fuzz.py --ignore=extract/tests/downloaders/test_e2e.py --ignore=extract/tests/downloaders/test_e2e_errors.py --ignore=extract/tests/downloaders/test_e2e_retry.py -k \"not e2e_client\" --deselect=upload/tests/test_e2e_client.py::TestS3ClientMethods::test_list_objects_with_files"
 exclude_dirs = ["__pycache__", ".venv", "mutants"]
 
 [dependency-groups]

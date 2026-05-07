@@ -97,3 +97,18 @@ def test_save_and_load_roundtrip_multiple_entries(tmp_data_dir: Path):
     assert loaded["yellow/tripdata_2024-01.parquet"]["s3_key"] == "data/yellow/01"
     assert loaded["green/tripdata_2024-02.parquet"]["checksum"] == "bbb"
     assert loaded["yellow/tripdata_2024-03.parquet"]["s3_key"] == "data/yellow/03"
+
+
+def test_load_manifest_returns_empty_for_empty_file(tmp_data_dir: Path):
+    manifest_path = tmp_data_dir / ".push_manifest.json"
+    manifest_path.write_text("")
+    result = load_manifest(tmp_data_dir)
+    assert result == {}
+
+
+def test_save_manifest_writes_valid_json(tmp_data_dir: Path):
+    manifest = {"file.parquet": {"s3_key": "data/file.parquet", "checksum": "abc123"}}
+    save_manifest(tmp_data_dir, manifest)
+    path = tmp_data_dir / ".push_manifest.json"
+    data = json.loads(path.read_text())
+    assert data == manifest

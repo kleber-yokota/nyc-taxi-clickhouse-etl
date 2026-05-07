@@ -86,3 +86,40 @@ def test_load_checkpoint_returns_none_for_non_json(tmp_data_dir: Path):
     path.write_text("this is not json at all")
     result = load_checkpoint(tmp_data_dir)
     assert result is None
+
+
+def test_load_checkpoint_returns_none_for_missing_keys(tmp_data_dir: Path):
+    path = tmp_data_dir / ".etl_checkpoint.json"
+    path.write_text('{"status": "incomplete"}')
+    result = load_checkpoint(tmp_data_dir)
+    assert result is not None
+    assert result.status == "incomplete"
+
+
+def test_save_checkpoint_writes_all_fields(tmp_data_dir: Path):
+    checkpoint = Checkpoint(
+        status="completed",
+        error=None,
+        extract={"downloaded": 10, "skipped": 2, "failed": 0, "total": 12, "duration_seconds": 5.5},
+        upload={"uploaded": 8, "uploaded_files": ["a.parquet"], "duration_seconds": 3.0},
+        total_duration_seconds=8.5,
+    )
+    save_checkpoint(tmp_data_dir, checkpoint)
+    path = tmp_data_dir / ".etl_checkpoint.json"
+    data = json.loads(path.read_text())
+    assert data["status"] == "completed"
+    assert data["extract"]["downloaded"] == 10
+    assert data["upload"]["uploaded"] == 8
+    assert data["upload"]["uploaded_files"] == ["a.parquet"]
+    assert data["total_duration_seconds"] == 8.5
+    assert "pipeline_id" in data
+    assert "started_at" in data
+
+
+def test_save_checkpoint_uses_json_dump_with_indent(tmp_data_dir: Path):
+    checkpoint = Checkpoint(status="completed")
+    save_checkpoint(tmp_data_dir, checkpoint)
+    path = tmp_data_dir / ".etl_checkpoint.json"
+    content = path.read_text()
+    assert "\n" in content  # indented JSON
+    assert "  " in content  # indent of 2 spaces

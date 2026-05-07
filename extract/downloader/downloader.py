@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+from collections.abc import Callable
 from pathlib import Path
 
 from extract.core.catalog import Catalog
@@ -24,6 +25,8 @@ from extract.downloader.ops import should_skip_download
 
 logger = logging.getLogger(__name__)
 
+ChecksumFunc = Callable[[Path], str] | None
+
 
 def run(
     data_dir: str | Path | None = None,
@@ -33,6 +36,7 @@ def run(
     mode: str = "incremental",
     max_entries: int | None = None,
     push_manifest: dict | None = None,
+    checksum_func: ChecksumFunc = None,
 ) -> dict[str, int]:
     """Download TLC parquet files according to the specified filters.
 
@@ -44,6 +48,7 @@ def run(
         mode: "incremental" (skip downloaded) or "full" (reset state).
         max_entries: Optional limit on entries for testing.
         push_manifest: Push manifest dict for S3 skip check.
+        checksum_func: Optional checksum function for verification.
 
     Returns:
         Dict with keys: downloaded, skipped, failed, total.
@@ -65,7 +70,7 @@ def run(
     interruptible = InterruptibleDownload(resolved_dir)
 
     downloaded, skipped, failed = _execute_download_loop(
-        entries, resolved_dir, state, known_missing, push_manifest,
+        entries, resolved_dir, state, known_missing, push_manifest, checksum_func,
     )
 
     result = make_result(downloaded, skipped, failed, len(entries))
@@ -79,6 +84,7 @@ def _execute_download_loop(
     state: State,
     known_missing: KnownMissing,
     push_manifest: dict | None = None,
+    checksum_func: ChecksumFunc = None,
 ) -> tuple[int, int, int]:
     """Execute the download loop for all catalog entries.
 
@@ -88,6 +94,7 @@ def _execute_download_loop(
         state: Download state tracker.
         known_missing: Known missing URLs tracker.
         push_manifest: Push manifest dict for S3 skip check.
+        checksum_func: Optional checksum function for verification.
 
     Returns:
         Tuple of (downloaded, skipped, failed) counts.
@@ -101,6 +108,7 @@ def _execute_download_loop(
             entry, data_dir, state, known_missing,
             downloaded, skipped, failed,
             push_manifest,
+            checksum_func,
         )
 
     return downloaded, skipped, failed

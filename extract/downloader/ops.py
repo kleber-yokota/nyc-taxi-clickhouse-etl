@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+from collections.abc import Callable
 from pathlib import Path
 
 from extract.downloader.download import download_and_verify
@@ -11,6 +12,8 @@ from extract.core.known_missing import KnownMissing
 from extract.core.push_manifest import is_pushed_in_manifest
 from extract.core.state import CatalogEntry
 from extract.core.state_manager import State
+
+ChecksumFunc = Callable[[Path], str] | None
 
 logger = logging.getLogger(__name__)
 
@@ -60,6 +63,7 @@ def process_entry(
     skipped: int,
     failed: int,
     push_manifest: dict | None = None,
+    checksum_func: ChecksumFunc = None,
 ) -> tuple[int, int, int]:
     """Process a single catalog entry.
 
@@ -72,6 +76,7 @@ def process_entry(
         skipped: Current skip count.
         failed: Current failure count.
         push_manifest: Push manifest dict for S3 skip check.
+        checksum_func: Optional checksum function for verification.
 
     Returns:
         Updated (downloaded, skipped, failed) counts.
@@ -81,7 +86,7 @@ def process_entry(
         return downloaded, skipped, failed
 
     try:
-        download_result = download_and_verify(entry, data_dir, state, known_missing)
+        download_result = download_and_verify(entry, data_dir, state, known_missing, checksum_func)
         if download_result == "skipped":
             skipped += 1
         elif download_result == "downloaded":

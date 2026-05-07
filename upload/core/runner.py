@@ -3,11 +3,14 @@
 from __future__ import annotations
 
 import os
+from collections.abc import Callable
 from pathlib import Path
 
 from .client import S3Client
 from .engine import upload
 from .state import UploadResult, UploadState, UploadConfig
+
+ChecksumFunc = Callable[[Path], str] | None
 
 
 def upload_from_env(
@@ -16,6 +19,7 @@ def upload_from_env(
     bucket: str | None = None,
     prefix: str | None = None,
     endpoint_url: str | None = None,
+    checksum_func: ChecksumFunc = None,
 ) -> UploadResult:
     """Upload files using environment variables for configuration."""
     bucket = _resolve_bucket(bucket)
@@ -23,7 +27,7 @@ def upload_from_env(
     endpoint_url = endpoint_url or os.environ.get("S3_ENDPOINT_URL")
     client = S3Client.from_env(bucket=bucket, prefix=prefix, endpoint_url=endpoint_url)
     state = UploadState(Path(data_dir) / ".upload_state.json")
-    return upload(data_dir=data_dir, client=client, state=state, config=config)
+    return upload(data_dir=data_dir, client=client, state=state, config=config, checksum_func=checksum_func)
 
 
 def _resolve_bucket(bucket: str | None) -> str:

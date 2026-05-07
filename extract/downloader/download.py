@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+from collections.abc import Callable
 from pathlib import Path
 
 import requests
@@ -14,6 +15,8 @@ from extract.core.known_missing import KnownMissing
 from extract.core.state import CatalogEntry, ErrorType, compute_sha256
 from extract.core.state_manager import State
 
+ChecksumFunc = Callable[[Path], str] | None
+
 logger = logging.getLogger(__name__)
 
 
@@ -22,6 +25,7 @@ def download_and_verify(
     data_dir: Path,
     state: State,
     known_missing: KnownMissing | None = None,
+    checksum_func: ChecksumFunc = None,
 ) -> str:
     """Download a file and verify its checksum.
 
@@ -43,10 +47,10 @@ def download_and_verify(
         target_path.parent.mkdir(parents=True, exist_ok=True)
         _fetch_content(entry.url, tmp_path)
 
-        actual_checksum = compute_sha256(tmp_path)
+        actual_checksum = checksum_func(tmp_path) if checksum_func else compute_sha256(tmp_path)
 
         if target_path.exists():
-            existing_checksum = compute_sha256(target_path)
+            existing_checksum = checksum_func(target_path) if checksum_func else compute_sha256(target_path)
             if existing_checksum == actual_checksum:
                 tmp_path.unlink()
                 return "skipped"

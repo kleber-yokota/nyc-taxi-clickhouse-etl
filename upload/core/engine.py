@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+from collections.abc import Callable
 from pathlib import Path
 
 from .checksum import compute_sha256
@@ -12,12 +13,15 @@ from .state import UploadResult, UploadState, UploadConfig
 
 logger = logging.getLogger(__name__)
 
+ChecksumFunc = Callable[[Path], str] | None
+
 
 def upload(
     data_dir: str | Path,
     client: S3Client,
     state: UploadState,
     config: UploadConfig | None = None,
+    checksum_func: ChecksumFunc = None,
 ) -> UploadResult:
     """Upload files from data_dir to S3."""
     data_dir = Path(data_dir)
@@ -37,7 +41,7 @@ def upload(
 
     for local_path in files:
         try:
-            status = _upload_one(local_path, data_dir, client, state, config)
+            status = _upload_one(local_path, data_dir, client, state, config, checksum_func)
             if status == "uploaded":
                 uploaded += 1
                 uploaded_files.append(str(local_path.relative_to(data_dir)))
@@ -60,10 +64,11 @@ def _upload_one(
     client: S3Client,
     state: UploadState,
     config: UploadConfig,
+    checksum_func: ChecksumFunc = None,
 ) -> str:
     """Upload a single file to S3."""
     rel_path = str(local_path.relative_to(data_dir))
-    checksum = compute_sha256(local_path)
+    checksum = checksum_func(local_path) if checksum_func else compute_sha256(local_path)
 
     if _should_skip(local_path, checksum, state, config.overwrite):
         logger.debug("Skipping (already uploaded): %s", rel_path)

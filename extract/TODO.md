@@ -17,11 +17,11 @@
 - [x] Enforce 15/10/3 rules (function length, complexity, nesting)
 
 ### Test
-- [ ] Merge `test_interrupt_signal.py` into `test_interrupt.py`
-- [ ] Consolidate `test_state.py` + `test_catalog_sha256.py` (duplicate `compute_sha256` tests)
-- [ ] Run mutation testing (mutmut) and verify all mutants killed
-- [ ] Run E2E tests with VCR cassettes
-- [ ] Run fuzz and property-based tests
+- [x] Merge `test_interrupt_signal.py` into `test_interrupt.py`
+- [x] Consolidate `test_state.py` + `test_catalog_sha256.py` (duplicate `compute_sha256` tests)
+- [x] Run mutation testing (mutmut) and verify all mutants killed
+- [x] Run E2E tests with VCR cassettes
+- [x] Run fuzz and property-based tests
 
 ### Audit
 - [ ] Resolve signal handler conflict (global `signal.signal` vs `KeyboardInterrupt`)

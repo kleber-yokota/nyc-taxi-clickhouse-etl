@@ -3,10 +3,10 @@
 ## TODO (Managed by Maintainer)
 
 ### Draft
-- [ ] Fix critical bug: add `ErrorType` import in `state_manager.py`
-- [ ] Fix type hints: `state: object` -> `State`, `known_missing: object` -> `KnownMissing`
-- [ ] Fix type hints: `entries: list` -> `list[CatalogEntry]`, `e: Exception` -> `HTTPError`
-- [ ] Add `__all__` declarations to all modules
+- [x] Fix critical bug: add `ErrorType` import in `state_manager.py`
+- [x] Fix type hints: `state: object` -> `State`, `known_missing: object` -> `KnownMissing`
+- [x] Fix type hints: `entries: list` -> `list[CatalogEntry]`, `e: Exception` -> `HTTPError`
+- [x] Add `__all__` declarations to all modules
 
 ### Refine
 - [x] Remove 8 test compatibility aliases in `downloader.py:127-134`
@@ -144,14 +144,14 @@ downloader/actions.py        --> stdlib
 ### Known Issues
 
 **Critical:**
-- `state_manager.py:82` — Uses `ErrorType` without importing from `.state` (causes NameError at runtime)
+- ~~`state_manager.py:82` — Uses `ErrorType` without importing from `.state` (causes NameError at runtime)~~ (RESOLVED: added `from .state import ErrorType`)
 
 **Moderate:**
 - ~~`downloader.py:127-134` — 8 test compatibility aliases (dead code/workaround)~~ (RESOLVED: removed)
-- `downloader_actions.py:23` — `state: object` instead of `State`
-- `downloader_download.py:80` — `known_missing: object` instead of `KnownMissing`
-- `downloader_util.py:47` — `e: Exception` instead of `requests.HTTPError`
-- `downloader_download.py:79` — `entries: list` without type parameter
+- ~~`downloader_actions.py:23` — `state: object` instead of `State`~~ (RESOLVED: `state: State`)
+- ~~`downloader_download.py:80` — `known_missing: object` instead of `KnownMissing`~~ (RESOLVED: `known_missing: KnownMissing`)
+- ~~`downloader_util.py:47` — `e: Exception` instead of `requests.HTTPError`~~ (RESOLVED: `e: requests.HTTPError`)
+- ~~`downloader_download.py:79` — `entries: list` without type parameter~~ (RESOLVED: `entries: list[CatalogEntry]`)
 - ~~`downloader_download.py:107` + `downloader_util.py:47` — Duplicate HTTP error handling logic~~ (RESOLVED: consolidated into `_log_http_error`)
 - ~~`interrupt.py:31-32` — `signal.signal` re-registered on every instantiation~~ (RESOLVED: module-level singleton with `_ensure_signal_handler()`)
 - ~~`downloader.py:109-110` — `KeyboardInterrupt` handler conflicts with InterruptibleDownload~~ (RESOLVED: removed conflicting handler, signal handled at module level)
@@ -162,5 +162,5 @@ downloader/actions.py        --> stdlib
 
 **Minor:**
 - ~~All `__init__.py` files are empty (no public API exports)~~ (RESOLVED: all have `__all__` and exports)
-- No `__all__` declarations in any module
+- ~~No `__all__` declarations in any module~~ (RESOLVED: added to all modules)
 - ~~`downloader_ops.py:50` — `target_dir` passed where `data_type` was expected~~ (RESOLVED: replaced with `data_type`)

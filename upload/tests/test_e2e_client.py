@@ -7,7 +7,7 @@ from unittest.mock import patch
 
 import pytest
 
-from push.core.client import S3Client
+from upload.core.client import S3Client
 
 
 class TestS3ClientMethods:

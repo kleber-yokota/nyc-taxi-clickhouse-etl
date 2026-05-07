@@ -1,4 +1,4 @@
-"""Custom exceptions for the push module."""
+"""Custom exceptions for the upload module."""
 
 from __future__ import annotations
 

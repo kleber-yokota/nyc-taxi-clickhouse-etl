@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from push.core.checksum import compute_content_type, compute_sha256
+from upload.core.checksum import compute_content_type, compute_sha256
 
 
 class TestComputeContentType:

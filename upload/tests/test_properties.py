@@ -1,4 +1,4 @@
-"""Property-based tests for push module using hypothesis."""
+"""Property-based tests for upload module using hypothesis."""
 
 from __future__ import annotations
 
@@ -11,9 +11,9 @@ from hypothesis.strategies import composite
 
 import pytest
 
-from push.core.checksum import compute_content_type, compute_sha256
-from push.core.filter import _matches_any, _matches_pattern
-from push.core.state import PushResult, UploadConfig
+from upload.core.checksum import compute_content_type, compute_sha256
+from upload.core.filter import _matches_any, _matches_pattern
+from upload.core.state import UploadResult, UploadConfig
 
 
 # ── Strategies ──────────────────────────────────────────────────────────
@@ -39,8 +39,8 @@ def glob_pattern_strategies() -> st.SearchStrategy[str]:
 
 
 @composite
-def push_result_params(draw: Any) -> dict:
-    """Generate valid PushResult constructor parameters."""
+def upload_result_params(draw: Any) -> dict:
+    """Generate valid UploadResult constructor parameters."""
     return {
         "uploaded": draw(st.integers(min_value=0, max_value=10000)),
         "skipped": draw(st.integers(min_value=0, max_value=10000)),
@@ -71,47 +71,47 @@ def upload_config_params(draw: Any) -> dict:
     }
 
 
-# ── PushResult properties ──────────────────────────────────────────────
+# ── UploadResult properties ─────────────────────────────────────────────
 
 
-class TestPushResultProperties:
-    """Property-based tests for PushResult."""
+class TestUploadResultProperties:
+    """Property-based tests for UploadResult."""
 
-    @given(params=push_result_params())
+    @given(params=upload_result_params())
     @settings(max_examples=30, deadline=2000)
-    def test_pushresult_defaults_overridable(self, params: dict) -> None:
-        """PushResult fields accept any valid integer values."""
-        result = PushResult(**params)
+    def test_uploadresult_defaults_overridable(self, params: dict) -> None:
+        """UploadResult fields accept any valid integer values."""
+        result = UploadResult(**params)
         assert result.uploaded == params["uploaded"]
         assert result.skipped == params["skipped"]
         assert result.failed == params["failed"]
         assert result.total == params["total"]
 
-    @given(params=push_result_params())
+    @given(params=upload_result_params())
     @settings(max_examples=30, deadline=2000)
-    def test_pushresult_frozen(self, params: dict) -> None:
-        """PushResult is immutable — mutation raises FrozenInstanceError."""
+    def test_uploadresult_frozen(self, params: dict) -> None:
+        """UploadResult is immutable — mutation raises FrozenInstanceError."""
         from dataclasses import FrozenInstanceError
-        result = PushResult(**params)
+        result = UploadResult(**params)
         with pytest.raises(FrozenInstanceError):
             result.uploaded = 0  # type: ignore[assignment]
         with pytest.raises(FrozenInstanceError):
             result.skipped = 0  # type: ignore[assignment]
 
-    @given(params=push_result_params())
+    @given(params=upload_result_params())
     @settings(max_examples=30, deadline=2000)
-    def test_pushresult_equality(self, params: dict) -> None:
-        """Two PushResults with same fields are equal."""
-        result1 = PushResult(**params)
-        result2 = PushResult(**params)
+    def test_uploadresult_equality(self, params: dict) -> None:
+        """Two UploadResults with same fields are equal."""
+        result1 = UploadResult(**params)
+        result2 = UploadResult(**params)
         assert result1 == result2
 
-    @given(params_a=push_result_params(), params_b=push_result_params())
+    @given(params_a=upload_result_params(), params_b=upload_result_params())
     @settings(max_examples=30, deadline=2000)
-    def test_pushresult_inequality_on_different_fields(self, params_a: dict, params_b: dict) -> None:
-        """Two PushResults with different fields are not equal."""
-        result1 = PushResult(**params_a)
-        result2 = PushResult(**params_b)
+    def test_uploadresult_inequality_on_different_fields(self, params_a: dict, params_b: dict) -> None:
+        """Two UploadResults with different fields are not equal."""
+        result1 = UploadResult(**params_a)
+        result2 = UploadResult(**params_b)
         if params_a != params_b:
             assert result1 != result2
 

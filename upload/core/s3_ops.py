@@ -1,38 +1,13 @@
-"""S3 operations — raw boto3 operations for S3-compatible services."""
+"""S3 operation wrappers for the upload module."""
 
 from __future__ import annotations
 
-from typing import BinaryIO, Protocol
+from typing import BinaryIO
 
 from botocore.exceptions import ClientError
 
 from .errors import S3ClientError
-
-
-class S3Ops(Protocol):
-    """Protocol defining the S3 client operations used by the push module.
-
-    This allows dependency injection of any S3-compatible client
-    (boto3, moto, test doubles) without depending on boto3 directly.
-    """
-
-    def put_object(
-        self, Bucket: str, Key: str, Body: bytes | BinaryIO, ContentType: str,
-    ) -> dict: ...
-
-    def upload_fileobj(
-        self, Fileobj: BinaryIO, Bucket: str, Key: str, Config: object,
-    ) -> None: ...
-
-    def head_object(self, Bucket: str, Key: str) -> dict | None: ...
-
-    def get_paginator(self, name: str) -> object: ...
-
-    def delete_object(self, Bucket: str, Key: str) -> None: ...
-
-    def create_bucket(self, Bucket: str) -> None: ...
-
-    def head_bucket(self, Bucket: str) -> None: ...
+from .ops import S3Ops
 
 
 def put_object(

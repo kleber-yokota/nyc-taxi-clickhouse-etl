@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from push.core.filter import (
+from upload.core.filter import (
     _collect_and_filter,
     _matches_any,
     _matches_pattern,
@@ -39,11 +39,11 @@ class TestMatchesAny:
     """Tests for _matches_any — kill exclusion pattern mutations."""
 
     def test_single_exclude(self):
-        assert _matches_any("file.parquet", {".push_state.json"}) is False
-        assert _matches_any(".push_state.json", {".push_state.json"}) is True
+        assert _matches_any("file.parquet", {".upload_state.json"}) is False
+        assert _matches_any(".upload_state.json", {".upload_state.json"}) is True
 
     def test_multiple_exclude(self):
-        patterns = {".push_state.json", "temp*.parquet"}
+        patterns = {".upload_state.json", "temp*.parquet"}
         assert _matches_any("temp.parquet", patterns) is True
         assert _matches_any("data.parquet", patterns) is False
 
@@ -57,42 +57,42 @@ class TestMatchesAny:
 class TestCollectAndFilter:
     """Tests for _collect_and_filter — kill collection mutations."""
 
-    def test_collect_wildcard(self, push_dir):
-        push_dir.mkdir(parents=True, exist_ok=True)
-        (push_dir / "a.parquet").write_bytes(b"x")
-        (push_dir / "sub").mkdir()
-        (push_dir / "sub" / "b.parquet").write_bytes(b"y")
+    def test_collect_wildcard(self, upload_dir):
+        upload_dir.mkdir(parents=True, exist_ok=True)
+        (upload_dir / "a.parquet").write_bytes(b"x")
+        (upload_dir / "sub").mkdir()
+        (upload_dir / "sub" / "b.parquet").write_bytes(b"y")
 
-        result = _collect_and_filter(push_dir, {"*"}, set())
-        paths = [str(p.relative_to(push_dir)) for p in result]
+        result = _collect_and_filter(upload_dir, {"*"}, set())
+        paths = [str(p.relative_to(upload_dir)) for p in result]
         assert "a.parquet" in paths
         assert "sub/b.parquet" in paths
 
-    def test_collect_extension(self, push_dir):
-        push_dir.mkdir(parents=True, exist_ok=True)
-        (push_dir / "a.parquet").write_bytes(b"x")
-        (push_dir / "b.txt").write_bytes(b"y")
+    def test_collect_extension(self, upload_dir):
+        upload_dir.mkdir(parents=True, exist_ok=True)
+        (upload_dir / "a.parquet").write_bytes(b"x")
+        (upload_dir / "b.txt").write_bytes(b"y")
 
-        result = _collect_and_filter(push_dir, {"*.parquet"}, set())
+        result = _collect_and_filter(upload_dir, {"*.parquet"}, set())
         names = [p.name for p in result]
         assert "a.parquet" in names
         assert "b.txt" not in names
 
-    def test_exclude(self, push_dir):
-        push_dir.mkdir(parents=True, exist_ok=True)
-        (push_dir / "a.parquet").write_bytes(b"x")
-        (push_dir / "b.parquet").write_bytes(b"y")
+    def test_exclude(self, upload_dir):
+        upload_dir.mkdir(parents=True, exist_ok=True)
+        (upload_dir / "a.parquet").write_bytes(b"x")
+        (upload_dir / "b.parquet").write_bytes(b"y")
 
-        result = _collect_and_filter(push_dir, {"*.parquet"}, {"b*"})
+        result = _collect_and_filter(upload_dir, {"*.parquet"}, {"b*"})
         names = [p.name for p in result]
         assert "a.parquet" in names
         assert "b.parquet" not in names
 
-    def test_collect_file_only(self, push_dir):
-        push_dir.mkdir(parents=True, exist_ok=True)
-        (push_dir / "a.parquet").write_bytes(b"x")
-        (push_dir / "dir").mkdir()
+    def test_collect_file_only(self, upload_dir):
+        upload_dir.mkdir(parents=True, exist_ok=True)
+        (upload_dir / "a.parquet").write_bytes(b"x")
+        (upload_dir / "dir").mkdir()
 
-        result = _collect_and_filter(push_dir, {"*"}, set())
+        result = _collect_and_filter(upload_dir, {"*"}, set())
         dirs = [p.name for p in result if p.is_dir()]
         assert "dir" not in dirs

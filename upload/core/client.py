@@ -11,7 +11,7 @@ from botocore.exceptions import NoCredentialsError
 from typing import BinaryIO
 
 from .ops import S3Ops
-from .ops import (
+from .s3_ops import (
     create_bucket as _create_bucket,
     delete_object as _delete_object,
     head_object as _head_object,

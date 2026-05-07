@@ -1,4 +1,4 @@
-"""File checksum computation for the push module."""
+"""File checksum computation for the upload module."""
 
 from __future__ import annotations
 

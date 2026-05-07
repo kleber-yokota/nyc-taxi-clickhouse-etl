@@ -1,4 +1,4 @@
-"""E2E tests for push pipeline using testcontainers MinIO."""
+"""E2E tests for upload pipeline using testcontainers MinIO."""
 
 from __future__ import annotations
 
@@ -6,20 +6,20 @@ from pathlib import Path
 
 import pytest
 
-from push.core.state import PushState, UploadConfig
+from upload.core.state import UploadState, UploadConfig
 
 
-class TestPushPipeline:
-    """Full push pipeline tests using real MinIO."""
+class TestUploadPipeline:
+    """Full upload pipeline tests using real MinIO."""
 
-    def test_push_fresh_files(self, sample_files: Path, s3_client, caplog):
+    def test_upload_fresh_files(self, sample_files: Path, s3_client, caplog):
         import logging
         caplog.set_level(logging.INFO)
-        state_file = sample_files / ".push_state.json"
+        state_file = sample_files / ".upload_state.json"
         s3_client.create_bucket()
-        state = PushState(state_file)
+        state = UploadState(state_file)
 
-        from push.core.push import upload
+        from upload.core.engine import upload
         result = upload(sample_files, s3_client, state)
 
         assert result.uploaded == 3
@@ -27,14 +27,14 @@ class TestPushPipeline:
         assert result.failed == 0
         assert result.total == 3
 
-    def test_push_skip_already_pushed(self, sample_files: Path, s3_client, caplog):
+    def test_upload_skip_already_uploaded(self, sample_files: Path, s3_client, caplog):
         import logging
         caplog.set_level(logging.INFO)
-        state_file = sample_files / ".push_state.json"
+        state_file = sample_files / ".upload_state.json"
         s3_client.create_bucket()
-        state = PushState(state_file)
+        state = UploadState(state_file)
 
-        from push.core.push import upload
+        from upload.core.engine import upload
         upload(sample_files, s3_client, state)
         result = upload(sample_files, s3_client, state)
 
@@ -42,24 +42,24 @@ class TestPushPipeline:
         assert result.skipped == 3
         assert result.total == 3
 
-    def test_push_overwrite(self, sample_files: Path, s3_client):
-        state_file = sample_files / ".push_state.json"
+    def test_upload_overwrite(self, sample_files: Path, s3_client):
+        state_file = sample_files / ".upload_state.json"
         s3_client.create_bucket()
-        state = PushState(state_file)
+        state = UploadState(state_file)
 
-        from push.core.push import upload
+        from upload.core.engine import upload
         upload(sample_files, s3_client, state)
         result = upload(sample_files, s3_client, state, config=UploadConfig(overwrite=True))
 
         assert result.uploaded == 3
         assert result.skipped == 0
 
-    def test_push_include_filter(self, sample_files: Path, s3_client):
-        state_file = sample_files / ".push_state.json"
+    def test_upload_include_filter(self, sample_files: Path, s3_client):
+        state_file = sample_files / ".upload_state.json"
         s3_client.create_bucket()
-        state = PushState(state_file)
+        state = UploadState(state_file)
 
-        from push.core.push import upload
+        from upload.core.engine import upload
         result = upload(
             sample_files, s3_client, state,
             config=UploadConfig(include={"yellow*.parquet"}),
@@ -68,27 +68,27 @@ class TestPushPipeline:
         assert result.uploaded == 2
         assert result.total == 2
 
-    def test_push_nonexistent_dir(self, sample_files: Path, s3_client):
+    def test_upload_nonexistent_dir(self, sample_files: Path, s3_client):
         s3_client.create_bucket()
-        state = PushState(sample_files / ".push_state.json")
+        state = UploadState(sample_files / ".upload_state.json")
 
-        from push.core.push import upload
+        from upload.core.engine import upload
         result = upload(sample_files / "nonexistent", s3_client, state)
 
         assert result.uploaded == 0
         assert result.total == 0
 
 
-class TestPushSkip:
+class TestUploadSkip:
     """Skip behavior tests using real MinIO."""
 
     def test_skip_pre_recorded(self, sample_files_with_state: Path, s3_client, caplog):
         import logging
         caplog.set_level(logging.DEBUG)
-        state_file = sample_files_with_state / ".push_state.json"
+        state_file = sample_files_with_state / ".upload_state.json"
         assert state_file.exists()
 
-        state = PushState(state_file)
+        state = UploadState(state_file)
         pre_recorded_key = state._data[
             str(sample_files_with_state / "yellow" / "yellow_tripdata_2024-01.parquet")
         ].get("s3_key")
@@ -96,7 +96,7 @@ class TestPushSkip:
 
         s3_client.create_bucket()
 
-        from push.core.push import upload
+        from upload.core.engine import upload
         result = upload(sample_files_with_state, s3_client, state)
 
         assert result.uploaded == 0
@@ -108,29 +108,29 @@ class TestPushSkip:
         assert "yellow_tripdata_2024-01.parquet" in skip_records[0].message
 
     def test_overwrite_pre_recorded(self, sample_files_with_state: Path, s3_client):
-        state_file = sample_files_with_state / ".push_state.json"
+        state_file = sample_files_with_state / ".upload_state.json"
         s3_client.create_bucket()
-        state = PushState(state_file)
+        state = UploadState(state_file)
 
-        from push.core.push import upload
+        from upload.core.engine import upload
         result = upload(sample_files_with_state, s3_client, state, config=UploadConfig(overwrite=True))
 
         assert result.uploaded == 1
         assert result.skipped == 0
 
-    def test_push_delete_after_push(self, sample_files: Path, s3_client, caplog):
+    def test_upload_delete_after_upload(self, sample_files: Path, s3_client, caplog):
         import logging
         caplog.set_level(logging.INFO)
-        state_file = sample_files / ".push_state.json"
+        state_file = sample_files / ".upload_state.json"
         s3_client.create_bucket()
-        state = PushState(state_file)
+        state = UploadState(state_file)
 
-        from push.core.push import upload
+        from upload.core.engine import upload
         result = upload(
             sample_files,
             s3_client,
             state,
-            config=UploadConfig(delete_after_push=True),
+            config=UploadConfig(delete_after_upload=True),
         )
 
         assert result.uploaded == 3
@@ -142,34 +142,34 @@ class TestPushSkip:
         objects = s3_client.list_objects()
         assert len(objects) == 3
 
-    def test_push_delete_after_push_with_overwrite(self, sample_files: Path, s3_client):
-        state_file = sample_files / ".push_state.json"
+    def test_upload_delete_after_upload_with_overwrite(self, sample_files: Path, s3_client):
+        state_file = sample_files / ".upload_state.json"
         s3_client.create_bucket()
-        state = PushState(state_file)
+        state = UploadState(state_file)
 
-        from push.core.push import upload
+        from upload.core.engine import upload
         result = upload(
             sample_files,
             s3_client,
             state,
-            config=UploadConfig(delete_after_push=True, overwrite=True),
+            config=UploadConfig(delete_after_upload=True, overwrite=True),
         )
 
         assert result.uploaded == 3
         for parquet in sample_files.rglob("*.parquet"):
             assert not parquet.exists()
 
-    def test_push_delete_after_push_false_keeps_files(self, sample_files: Path, s3_client):
-        state_file = sample_files / ".push_state.json"
+    def test_upload_delete_after_upload_false_keeps_files(self, sample_files: Path, s3_client):
+        state_file = sample_files / ".upload_state.json"
         s3_client.create_bucket()
-        state = PushState(state_file)
+        state = UploadState(state_file)
 
-        from push.core.push import upload
+        from upload.core.engine import upload
         result = upload(
             sample_files,
             s3_client,
             state,
-            config=UploadConfig(delete_after_push=False),
+            config=UploadConfig(delete_after_upload=False),
         )
 
         assert result.uploaded == 3

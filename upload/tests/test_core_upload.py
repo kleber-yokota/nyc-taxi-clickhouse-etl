@@ -1,4 +1,4 @@
-"""Unit tests for push() — using FakeS3Client (zero mocks)."""
+"""Unit tests for upload() — using FakeS3Client (zero mocks)."""
 
 from __future__ import annotations
 
@@ -9,18 +9,18 @@ from typing import BinaryIO
 
 import pytest
 
-from push.core.errors import S3ClientError
-from push.core.state import PushState, UploadConfig
-from push.core.push import upload
-from push.tests.fake_s3 import FakeS3Client
+from upload.core.errors import S3ClientError
+from upload.core.state import UploadState, UploadConfig
+from upload.core.engine import upload
+from upload.tests.fake_s3 import FakeS3Client
 
 
-class TestPushFresh:
+class TestUploadFresh:
     """Tests for fresh uploads."""
 
-    def test_push_fresh_files(self, sample_files: Path):
+    def test_upload_fresh_files(self, sample_files: Path):
         client = FakeS3Client(bucket="b", prefix="data")
-        state = PushState(sample_files / ".push_state.json")
+        state = UploadState(sample_files / ".upload_state.json")
 
         result = upload(sample_files, client, state)
 
@@ -29,9 +29,9 @@ class TestPushFresh:
         assert result.failed == 0
         assert result.total == 3
 
-    def test_push_fresh_files_collected(self, sample_files: Path):
+    def test_upload_fresh_files_collected(self, sample_files: Path):
         client = FakeS3Client(bucket="b", prefix="data")
-        state = PushState(sample_files / ".push_state.json")
+        state = UploadState(sample_files / ".upload_state.json")
 
         result = upload(sample_files, client, state)
 
@@ -41,9 +41,9 @@ class TestPushFresh:
         assert "yellow/yellow_tripdata_2024-02.parquet" in relative_paths
         assert "green/green_tripdata_2024-01.parquet" in relative_paths
 
-    def test_push_skip_files_not_in_uploaded_list(self, sample_files: Path):
+    def test_upload_skip_files_not_in_uploaded_list(self, sample_files: Path):
         client = FakeS3Client(bucket="b", prefix="data")
-        state = PushState(sample_files / ".push_state.json")
+        state = UploadState(sample_files / ".upload_state.json")
 
         upload(sample_files, client, state)
         result = upload(sample_files, client, state)
@@ -52,9 +52,9 @@ class TestPushFresh:
         assert result.skipped == 3
         assert result.uploaded_files == []
 
-    def test_push_keys_use_prefix(self, sample_files: Path):
+    def test_upload_keys_use_prefix(self, sample_files: Path):
         client = FakeS3Client(bucket="b", prefix="data")
-        state = PushState(sample_files / ".push_state.json")
+        state = UploadState(sample_files / ".upload_state.json")
 
         upload(sample_files, client, state)
 
@@ -63,22 +63,22 @@ class TestPushFresh:
         assert "data/yellow/yellow_tripdata_2024-02.parquet" in keys
         assert "data/green/green_tripdata_2024-01.parquet" in keys
 
-    def test_push_uses_correct_content_type(self, sample_files: Path):
+    def test_upload_uses_correct_content_type(self, sample_files: Path):
         client = FakeS3Client(bucket="b", prefix="data")
-        state = PushState(sample_files / ".push_state.json")
+        state = UploadState(sample_files / ".upload_state.json")
 
         upload(sample_files, client, state)
 
         assert client.upload_count == 3
 
 
-class TestPushSkip:
+class TestUploadSkip:
     """Tests for skip behavior."""
 
-    def test_push_skip_when_already_pushed(self, sample_files: Path):
-        state_file = sample_files / ".push_state.json"
+    def test_upload_skip_when_already_uploaded(self, sample_files: Path):
+        state_file = sample_files / ".upload_state.json"
         client = FakeS3Client(bucket="b", prefix="data")
-        state = PushState(state_file)
+        state = UploadState(state_file)
 
         upload(sample_files, client, state)
         result = upload(sample_files, client, state)
@@ -87,10 +87,10 @@ class TestPushSkip:
         assert result.skipped == 3
         assert client.upload_count == 3
 
-    def test_push_overwrite_reuploads(self, sample_files: Path):
-        state_file = sample_files / ".push_state.json"
+    def test_upload_overwrite_reuploads(self, sample_files: Path):
+        state_file = sample_files / ".upload_state.json"
         client = FakeS3Client(bucket="b", prefix="data")
-        state = PushState(state_file)
+        state = UploadState(state_file)
 
         upload(sample_files, client, state)
         result = upload(sample_files, client, state, config=UploadConfig(overwrite=True))
@@ -99,7 +99,7 @@ class TestPushSkip:
         assert result.skipped == 0
         assert client.upload_count == 6
 
-    def test_push_skip_pre_recorded(self, sample_files: Path, caplog):
+    def test_upload_skip_pre_recorded(self, sample_files: Path, caplog):
         caplog.set_level("DEBUG")
         client = FakeS3Client(bucket="b", prefix="data")
         one_file = sample_files / "yellow" / "yellow_tripdata_2024-01.parquet"
@@ -112,16 +112,16 @@ class TestPushSkip:
             }
         }
         pre_state_file.write_text(json.dumps(pre_state))
-        state = PushState(pre_state_file)
+        state = UploadState(pre_state_file)
 
         result = upload(sample_files, client, state)
 
         assert result.uploaded == 2
         assert result.skipped == 1
         assert result.total == 3
-        assert any("Skipping (already pushed)" in record.message for record in caplog.records)
+        assert any("Skipping (already uploaded)" in record.message for record in caplog.records)
 
-    def test_push_overwrite_pre_recorded(self, sample_files: Path):
+    def test_upload_overwrite_pre_recorded(self, sample_files: Path):
         client = FakeS3Client(bucket="b", prefix="data")
         one_file = sample_files / "yellow" / "yellow_tripdata_2024-01.parquet"
         checksum = hashlib.sha256(one_file.read_bytes()).hexdigest()
@@ -132,32 +132,32 @@ class TestPushSkip:
                 "checksum": checksum,
             }
         }))
-        state = PushState(pre_state_file)
+        state = UploadState(pre_state_file)
 
         result = upload(sample_files, client, state, config=UploadConfig(overwrite=True))
 
         assert result.uploaded == 3
         assert result.skipped == 0
 
-    def test_push_records_state(self, sample_files: Path):
-        state_file = sample_files / ".push_state.json"
+    def test_upload_records_state(self, sample_files: Path):
+        state_file = sample_files / ".upload_state.json"
         client = FakeS3Client(bucket="b", prefix="data")
-        state = PushState(state_file)
+        state = UploadState(state_file)
 
         upload(sample_files, client, state)
 
-        state2 = PushState(state_file)
+        state2 = UploadState(state_file)
         for f in sample_files.rglob("*.parquet"):
             checksum = hashlib.sha256(f.read_bytes()).hexdigest()
-            assert state2.is_pushed(str(f), checksum) is True
+            assert state2.is_uploaded(str(f), checksum) is True
 
 
-class TestPushFiltering:
+class TestUploadFiltering:
     """Tests for include/exclude filtering."""
 
-    def test_push_include_filter(self, sample_files: Path):
+    def test_upload_include_filter(self, sample_files: Path):
         client = FakeS3Client(bucket="b", prefix="data")
-        state = PushState(sample_files / ".push_state.json")
+        state = UploadState(sample_files / ".upload_state.json")
 
         result = upload(
             sample_files, client, state,
@@ -167,9 +167,9 @@ class TestPushFiltering:
         assert result.uploaded == 2
         assert result.total == 2
 
-    def test_push_exclude_filter(self, sample_files: Path):
+    def test_upload_exclude_filter(self, sample_files: Path):
         client = FakeS3Client(bucket="b", prefix="data")
-        state = PushState(sample_files / ".push_state.json")
+        state = UploadState(sample_files / ".upload_state.json")
 
         result = upload(
             sample_files, client, state,
@@ -179,9 +179,9 @@ class TestPushFiltering:
         assert result.uploaded == 2
         assert result.total == 2
 
-    def test_push_empty_include(self, sample_files: Path):
+    def test_upload_empty_include(self, sample_files: Path):
         client = FakeS3Client(bucket="b", prefix="data")
-        state = PushState(sample_files / ".push_state.json")
+        state = UploadState(sample_files / ".upload_state.json")
 
         result = upload(
             sample_files, client, state,
@@ -191,13 +191,13 @@ class TestPushFiltering:
         assert result.total == 0
 
 
-class TestPushErrors:
+class TestUploadErrors:
     """Tests for error handling."""
 
-    def test_push_error_one_file(self, sample_files: Path, caplog):
+    def test_upload_error_one_file(self, sample_files: Path, caplog):
         caplog.set_level("ERROR")
         client = FakeS3Client(bucket="b", prefix="data")
-        state = PushState(sample_files / ".push_state.json")
+        state = UploadState(sample_files / ".upload_state.json")
 
         def failing_upload(key: str, fileobj: BinaryIO, **kwargs: object) -> dict:
             if "2024-02" in key:
@@ -214,10 +214,10 @@ class TestPushErrors:
         assert any("Unexpected error uploading" in msg for msg in error_messages)
         assert any("2024-02" in msg for msg in error_messages)
 
-    def test_push_nonexistent_dir(self, tmp_path: Path, caplog):
+    def test_upload_nonexistent_dir(self, tmp_path: Path, caplog):
         caplog.set_level("WARNING")
         client = FakeS3Client(bucket="b")
-        state = PushState(tmp_path / ".push_state.json")
+        state = UploadState(tmp_path / ".upload_state.json")
 
         result = upload(tmp_path / "nonexistent", client, state)
 
@@ -225,10 +225,10 @@ class TestPushErrors:
         assert result.total == 0
         assert any("Data directory does not exist" in record.message for record in caplog.records)
 
-    def test_push_uploaded_files_mutant_killing(self, sample_files: Path):
+    def test_upload_uploaded_files_mutant_killing(self, sample_files: Path):
         """Kills mutants that remove uploaded_files assignment or the field."""
         client = FakeS3Client(bucket="b", prefix="data")
-        state = PushState(sample_files / ".push_state.json")
+        state = UploadState(sample_files / ".upload_state.json")
 
         result = upload(sample_files, client, state)
 

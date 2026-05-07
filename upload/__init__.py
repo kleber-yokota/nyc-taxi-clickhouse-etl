@@ -1,10 +1,10 @@
-"""Push module -- upload NYC TLC trip record parquet files to S3-compatible storage."""
+"""Upload module -- upload NYC TLC trip record parquet files to S3-compatible storage."""
 
-from push.core import (
+from upload.core import (
     S3Client,
     S3ClientError,
-    PushResult,
-    PushState,
+    UploadResult,
+    UploadState,
     UploadConfig,
     upload,
     upload_from_env,
@@ -13,8 +13,8 @@ from push.core import (
 __all__ = [
     "S3Client",
     "S3ClientError",
-    "PushResult",
-    "PushState",
+    "UploadResult",
+    "UploadState",
     "UploadConfig",
     "upload",
     "upload_from_env",

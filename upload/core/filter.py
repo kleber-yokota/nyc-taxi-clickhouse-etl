@@ -1,4 +1,4 @@
-"""File collection and filtering for the push module."""
+"""File collection and filtering for the upload module."""
 
 from __future__ import annotations
 
@@ -25,7 +25,7 @@ def collect_files(
         Sorted list of file paths.
     """
     include_patterns = include if include is not None else {f"*{PARQUET_EXTENSION}"}
-    default_exclude = {".push_state.json"}
+    default_exclude = {".upload_state.json"}
     exclude_patterns = set(exclude) | default_exclude if exclude is not None else default_exclude
     return _collect_and_filter(data_dir, include_patterns, exclude_patterns)
 

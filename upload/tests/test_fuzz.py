@@ -1,13 +1,13 @@
-"""Fuzz tests for push module using atheris — coverage-guided input validation."""
+"""Fuzz tests for upload module using atheris — coverage-guided input validation."""
 
 import sys
 import atheris
 
 # Import under instrument_imports so atheris can trace execution
-with atheris.instrument_imports(include=["push.core.checksum", "push.core.filter", "push.core.state"]):
-    from push.core.checksum import compute_content_type, compute_sha256
-    from push.core.filter import _matches_pattern, _matches_any
-    from push.core.state import PushResult, UploadConfig
+with atheris.instrument_imports(include=["upload.core.checksum", "upload.core.filter", "upload.core.state"]):
+    from upload.core.checksum import compute_content_type, compute_sha256
+    from upload.core.filter import _matches_pattern, _matches_any
+    from upload.core.state import UploadResult, UploadConfig
 
 
 @atheris.instrument_func
@@ -79,15 +79,15 @@ def TestMatchesAny(data):
 
 
 @atheris.instrument_func
-def TestPushResultFrozen(data):
-    """Fuzz test for PushResult — verify frozen dataclass behavior."""
+def TestUploadResultFrozen(data):
+    """Fuzz test for UploadResult — verify frozen dataclass behavior."""
     fdp = atheris.FuzzedDataProvider(data)
     try:
         uploaded = fdp.ConsumeIntInRange(-1000, 1000000)
         skipped = fdp.ConsumeIntInRange(-1000, 1000000)
         failed = fdp.ConsumeIntInRange(-1000, 1000000)
         total = fdp.ConsumeIntInRange(-1000, 1000000)
-        result = PushResult(uploaded=uploaded, skipped=skipped, failed=failed, total=total)
+        result = UploadResult(uploaded=uploaded, skipped=skipped, failed=failed, total=total)
         assert result.uploaded == uploaded
         assert result.skipped == skipped
         assert result.failed == failed
@@ -95,7 +95,7 @@ def TestPushResultFrozen(data):
         # Verify frozen — must raise on mutation
         try:
             result.uploaded = 0  # type: ignore[assignment]
-            raise AssertionError("PushResult should be frozen")
+            raise AssertionError("UploadResult should be frozen")
         except Exception:
             pass  # Expected
     except (ValueError, OverflowError):
@@ -205,7 +205,7 @@ def TestOneInput(data):
         elif test_id == 3:
             TestMatchesAny(data)
         elif test_id == 4:
-            TestPushResultFrozen(data)
+            TestUploadResultFrozen(data)
         elif test_id == 5:
             TestUploadConfigFrozen(data)
         elif test_id == 6:
@@ -226,7 +226,7 @@ def TestOneInput(data):
             elif random_test == 3:
                 TestMatchesAny(data)
             elif random_test == 4:
-                TestPushResultFrozen(data)
+                TestUploadResultFrozen(data)
             elif random_test == 5:
                 TestUploadConfigFrozen(data)
             elif random_test == 6:

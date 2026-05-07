@@ -1,4 +1,4 @@
-"""Shared fixtures for push tests."""
+"""Shared fixtures for upload tests."""
 
 from __future__ import annotations
 
@@ -11,8 +11,8 @@ from unittest.mock import patch, MagicMock
 import pytest
 import testcontainers.minio as mc
 
-from push.core.client import S3Client
-from push.core.state import PushState
+from upload.core.client import S3Client
+from upload.core.state import UploadState
 
 
 # Deterministic checksum for fake parquet content (cached to avoid recomputation)
@@ -57,7 +57,7 @@ def real_client(minio_container):
 @pytest.fixture
 def s3_client(minio_container, real_client):
     """Create an S3Client connected to the MinIO container."""
-    with patch("push.core.client.get_s3_client", return_value=real_client):
+    with patch("upload.core.client.get_s3_client", return_value=real_client):
         yield S3Client.from_env(
             bucket="e2e-bucket",
             prefix="data",
@@ -66,8 +66,8 @@ def s3_client(minio_container, real_client):
 
 
 @pytest.fixture
-def push_dir(tmp_path: Path) -> Path:
-    """Create a temporary data directory for push tests."""
+def upload_dir(tmp_path: Path) -> Path:
+    """Create a temporary data directory for upload tests."""
     return tmp_path / "data"
 
 
@@ -78,55 +78,55 @@ def fake_parquet_content() -> bytes:
 
 
 @pytest.fixture
-def push_state_file(push_dir: Path) -> Path:
-    """Return path to push state file."""
-    return push_dir / ".push_state.json"
+def upload_state_file(upload_dir: Path) -> Path:
+    """Return path to upload state file."""
+    return upload_dir / ".upload_state.json"
 
 
 @pytest.fixture
-def sample_files(push_dir: Path, fake_parquet_content: bytes):
-    """Create sample parquet files in the push directory."""
-    (push_dir / "yellow").mkdir(parents=True, exist_ok=True)
-    (push_dir / "green").mkdir(parents=True, exist_ok=True)
+def sample_files(upload_dir: Path, fake_parquet_content: bytes):
+    """Create sample parquet files in the upload directory."""
+    (upload_dir / "yellow").mkdir(parents=True, exist_ok=True)
+    (upload_dir / "green").mkdir(parents=True, exist_ok=True)
 
-    (push_dir / "yellow" / "yellow_tripdata_2024-01.parquet").write_bytes(fake_parquet_content)
-    (push_dir / "yellow" / "yellow_tripdata_2024-02.parquet").write_bytes(fake_parquet_content * 2)
-    (push_dir / "green" / "green_tripdata_2024-01.parquet").write_bytes(fake_parquet_content)
+    (upload_dir / "yellow" / "yellow_tripdata_2024-01.parquet").write_bytes(fake_parquet_content)
+    (upload_dir / "yellow" / "yellow_tripdata_2024-02.parquet").write_bytes(fake_parquet_content * 2)
+    (upload_dir / "green" / "green_tripdata_2024-01.parquet").write_bytes(fake_parquet_content)
 
-    return push_dir
+    return upload_dir
 
 
 @pytest.fixture
-def sample_files_with_state(push_dir: Path, fake_parquet_content: bytes, push_state_file: Path):
-    """Create sample parquet files with pre-populated push state."""
-    (push_dir / "yellow").mkdir(parents=True, exist_ok=True)
-    (push_dir / "yellow" / "yellow_tripdata_2024-01.parquet").write_bytes(fake_parquet_content)
+def sample_files_with_state(upload_dir: Path, fake_parquet_content: bytes, upload_state_file: Path):
+    """Create sample parquet files with pre-populated upload state."""
+    (upload_dir / "yellow").mkdir(parents=True, exist_ok=True)
+    (upload_dir / "yellow" / "yellow_tripdata_2024-01.parquet").write_bytes(fake_parquet_content)
 
     checksum = sha256(fake_parquet_content).hexdigest()
 
-    state = PushState(push_state_file)
-    state.record_push(
-        str(push_dir / "yellow" / "yellow_tripdata_2024-01.parquet"),
+    state = UploadState(upload_state_file)
+    state.record_upload(
+        str(upload_dir / "yellow" / "yellow_tripdata_2024-01.parquet"),
         "data/yellow/yellow_tripdata_2024-01.parquet",
         checksum,
     )
     state.save()
 
-    return push_dir
+    return upload_dir
 
 
 def pytest_sessionstart(session: pytest.Session) -> None:
-    """Speed up push tests by caching checksums.
+    """Speed up upload tests by caching checksums.
 
     - Caches compute_sha256 results (reads file once, hashes in-memory)
-    - Only patches push_module.compute_sha256 (where upload() imports it).
+    - Only patches engine_module.compute_sha256 (where upload() imports it).
     - test_checksum.py imports compute_sha256 directly from checksum_module,
       so it is unaffected and still tests the real function.
 
     boto3.Session mock is applied in pytest_collection_modifyitems after
     e2e tests are identified (session.items is empty at sessionstart).
     """
-    from push.core import push as push_module
+    from upload.core import engine as engine_module
 
     # Cache compute_sha256
     def cached_sha256(file_path: Path) -> str:
@@ -137,7 +137,7 @@ def pytest_sessionstart(session: pytest.Session) -> None:
             _FAKE_CHECKSUMS[content_key] = sha256(content).hexdigest()
         return _FAKE_CHECKSUMS[content_key]
 
-    push_module.compute_sha256 = cached_sha256
+    engine_module.compute_sha256 = cached_sha256
 
 
 def pytest_collection_modifyitems(session: pytest.Session, config: pytest.Config, items: list[pytest.Item]) -> None:

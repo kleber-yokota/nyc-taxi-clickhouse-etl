@@ -7,7 +7,7 @@ from unittest.mock import patch
 
 import pytest
 
-from push.core.state import PushResult, UploadConfig
+from upload.core.state import UploadResult, UploadConfig
 
 
 class TestUploadFromEnv:
@@ -17,7 +17,7 @@ class TestUploadFromEnv:
         monkeypatch.delenv("S3_BUCKET", raising=False)
 
         with pytest.raises(ValueError, match="S3_BUCKET must be set"):
-            from push.core.runner import upload_from_env
+            from upload.core.runner import upload_from_env
 
             upload_from_env(str(tmp_path))
 
@@ -27,9 +27,9 @@ class TestUploadFromEnv:
         monkeypatch.delenv("S3_ENDPOINT_URL", raising=False)
         monkeypatch.delenv("AWS_DEFAULT_REGION", raising=False)
 
-        with patch("push.core.runner.upload") as mock_upload:
-            mock_upload.return_value = PushResult()
-            from push.core.runner import upload_from_env
+        with patch("upload.core.runner.upload") as mock_upload:
+            mock_upload.return_value = UploadResult()
+            from upload.core.runner import upload_from_env
 
             upload_from_env(str(tmp_path))
 
@@ -44,9 +44,9 @@ class TestUploadFromEnv:
         monkeypatch.setenv("S3_ENDPOINT_URL", "http://minio:9000")
         monkeypatch.setenv("AWS_DEFAULT_REGION", "eu-west-1")
 
-        with patch("push.core.runner.upload") as mock_upload:
-            mock_upload.return_value = PushResult()
-            from push.core.runner import upload_from_env
+        with patch("upload.core.runner.upload") as mock_upload:
+            mock_upload.return_value = UploadResult()
+            from upload.core.runner import upload_from_env
 
             upload_from_env(str(tmp_path))
 
@@ -60,9 +60,9 @@ class TestUploadFromEnv:
         monkeypatch.setenv("S3_ENDPOINT_URL", "http://minio:9000")
         monkeypatch.setenv("AWS_DEFAULT_REGION", "us-east-1")
 
-        with patch("push.core.runner.upload") as mock_upload:
-            mock_upload.return_value = PushResult()
-            from push.core.runner import upload_from_env
+        with patch("upload.core.runner.upload") as mock_upload:
+            mock_upload.return_value = UploadResult()
+            from upload.core.runner import upload_from_env
 
             upload_from_env(
                 str(tmp_path),
@@ -82,9 +82,9 @@ class TestUploadFromEnv:
         monkeypatch.setenv("S3_ENDPOINT_URL", "http://minio:9000")
         monkeypatch.setenv("AWS_DEFAULT_REGION", "us-east-1")
 
-        with patch("push.core.runner.upload") as mock_upload:
-            mock_upload.return_value = PushResult()
-            from push.core.runner import upload_from_env
+        with patch("upload.core.runner.upload") as mock_upload:
+            mock_upload.return_value = UploadResult()
+            from upload.core.runner import upload_from_env
 
             upload_from_env(str(tmp_path), bucket=None, prefix=None)
 
@@ -97,9 +97,9 @@ class TestUploadFromEnv:
         monkeypatch.setenv("S3_ENDPOINT_URL", "http://minio:9000")
         monkeypatch.setenv("AWS_DEFAULT_REGION", "us-east-1")
 
-        with patch("push.core.runner.upload") as mock_upload:
-            mock_upload.return_value = PushResult()
-            from push.core.runner import upload_from_env
+        with patch("upload.core.runner.upload") as mock_upload:
+            mock_upload.return_value = UploadResult()
+            from upload.core.runner import upload_from_env
 
             upload_from_env(str(tmp_path), bucket="")
 
@@ -111,20 +111,20 @@ class TestUploadFromEnv:
         monkeypatch.setenv("S3_ENDPOINT_URL", "http://minio:9000")
         monkeypatch.setenv("AWS_DEFAULT_REGION", "us-east-1")
 
-        with patch("push.core.runner.upload") as mock_upload:
-            mock_upload.return_value = PushResult()
-            from push.core.runner import upload_from_env
+        with patch("upload.core.runner.upload") as mock_upload:
+            mock_upload.return_value = UploadResult()
+            from upload.core.runner import upload_from_env
 
             upload_from_env(
                 str(tmp_path),
                 config=UploadConfig(
                     include={"yellow*.parquet"},
-                    exclude={".push_state.json"},
+                    exclude={".upload_state.json"},
                 ),
             )
 
             assert mock_upload.call_args[1]["config"].include == {"yellow*.parquet"}
-            assert mock_upload.call_args[1]["config"].exclude == {".push_state.json"}
+            assert mock_upload.call_args[1]["config"].exclude == {".upload_state.json"}
 
     def test_state_file_path_correct(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
         monkeypatch.setenv("S3_BUCKET", "my-bucket")
@@ -132,15 +132,15 @@ class TestUploadFromEnv:
         monkeypatch.setenv("S3_ENDPOINT_URL", "http://minio:9000")
         monkeypatch.setenv("AWS_DEFAULT_REGION", "us-east-1")
 
-        with patch("push.core.runner.upload") as mock_upload:
-            mock_upload.return_value = PushResult()
-            from push.core.runner import upload_from_env
+        with patch("upload.core.runner.upload") as mock_upload:
+            mock_upload.return_value = UploadResult()
+            from upload.core.runner import upload_from_env
 
             upload_from_env(str(tmp_path))
 
             state = mock_upload.call_args[1]["state"]
-            assert state.state_path.name == ".push_state.json"
-            assert state.state_path == tmp_path / ".push_state.json"
+            assert state.state_path.name == ".upload_state.json"
+            assert state.state_path == tmp_path / ".upload_state.json"
 
     def test_data_dir_passed_to_upload(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
         monkeypatch.setenv("S3_BUCKET", "my-bucket")
@@ -148,9 +148,9 @@ class TestUploadFromEnv:
         monkeypatch.setenv("S3_ENDPOINT_URL", "http://minio:9000")
         monkeypatch.setenv("AWS_DEFAULT_REGION", "us-east-1")
 
-        with patch("push.core.runner.upload") as mock_upload:
-            mock_upload.return_value = PushResult()
-            from push.core.runner import upload_from_env
+        with patch("upload.core.runner.upload") as mock_upload:
+            mock_upload.return_value = UploadResult()
+            from upload.core.runner import upload_from_env
 
             upload_from_env(str(tmp_path))
 

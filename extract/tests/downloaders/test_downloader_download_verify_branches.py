@@ -9,7 +9,7 @@ from unittest.mock import MagicMock
 import pytest
 import responses as responses_lib
 
-from extract.downloader.downloader_download import download_and_verify
+from extract.downloader.download import download_and_verify
 from extract.core.state import CatalogEntry
 from extract.core.state_manager import State
 

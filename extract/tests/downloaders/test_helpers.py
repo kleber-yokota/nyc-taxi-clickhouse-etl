@@ -8,17 +8,15 @@ from unittest.mock import patch
 import pytest
 import responses
 
-from extract.downloader.downloader import (
-    _backup_existing_file,
-    _cleanup_stale_tmp,
-    _fetch_content,
-    _handle_http_error,
-    _handle_network_error,
-    _safe_unlink,
-)
-from extract.downloader.downloader_actions import apply_mode as _apply_mode
-from extract.downloader.downloader_actions import make_result as _make_result
-from extract.downloader.downloader_actions import resolve_data_dir as _resolve_data_dir
+from extract.downloader.utils import backup_existing_file as _backup_existing_file
+from extract.downloader.utils import cleanup_stale_tmp as _cleanup_stale_tmp
+from extract.downloader.download import _fetch_content
+from extract.downloader.download import _log_http_error
+from extract.downloader.utils import handle_network_error as _handle_network_error
+from extract.downloader.utils import safe_unlink as _safe_unlink
+from extract.downloader.actions import apply_mode as _apply_mode
+from extract.downloader.actions import make_result as _make_result
+from extract.downloader.actions import resolve_data_dir as _resolve_data_dir
 from extract.core.state import ErrorType
 from extract.core.state_manager import State
 

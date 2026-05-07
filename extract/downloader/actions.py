@@ -5,6 +5,8 @@ from __future__ import annotations
 import logging
 from pathlib import Path
 
+from extract.core.state_manager import State
+
 logger = logging.getLogger(__name__)
 
 
@@ -20,7 +22,7 @@ def resolve_data_dir(data_dir: str | Path | None) -> Path:
     return Path(data_dir) if data_dir else Path("data")
 
 
-def apply_mode(state: object, mode: str) -> None:
+def apply_mode(state: State, mode: str) -> None:
     """Reset state if running in full mode.
 
     Args:

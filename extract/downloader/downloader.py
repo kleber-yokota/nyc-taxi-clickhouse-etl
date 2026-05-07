@@ -10,20 +10,17 @@ from extract.core.interrupt import InterruptibleDownload
 from extract.core.known_missing import KnownMissing
 from extract.core.push_manifest import load_push_manifest
 from extract.core.state_manager import State
-from extract.downloader.downloader_actions import apply_mode
-from extract.downloader.downloader_actions import log_download_complete
-from extract.downloader.downloader_actions import make_result
-from extract.downloader.downloader_actions import resolve_data_dir
-from extract.downloader.downloader_download import download_and_verify
-from extract.downloader.downloader_download import handle_download_error
-from extract.downloader.downloader_download import _fetch_content  # noqa: F401
-from extract.downloader.downloader_ops import process_entry
-from extract.downloader.downloader_ops import should_skip_download
-from extract.downloader.downloader_util import backup_existing_file
-from extract.downloader.downloader_util import cleanup_stale_tmp
-from extract.downloader.downloader_util import handle_http_error as _handle_http_error
-from extract.downloader.downloader_util import handle_network_error as _handle_network_error
-from extract.downloader.downloader_util import safe_unlink
+from extract.downloader.actions import apply_mode
+from extract.downloader.actions import log_download_complete
+from extract.downloader.actions import make_result
+from extract.downloader.actions import resolve_data_dir
+from extract.downloader.download import download_and_verify
+from extract.downloader.download import handle_download_error
+from extract.downloader.download import _fetch_content  # noqa: F401
+from extract.downloader.download import _log_http_error
+from extract.downloader.ops import process_entry
+from extract.downloader.ops import should_skip_download
+
 
 logger = logging.getLogger(__name__)
 
@@ -99,37 +96,11 @@ def _execute_download_loop(
     skipped = 0
     failed = 0
 
-    try:
-        for entry in entries:
-            downloaded, skipped, failed = process_entry(
-                entry, data_dir, state, known_missing,
-                downloaded, skipped, failed,
-                push_manifest,
-            )
-    except KeyboardInterrupt:
-        _handle_interrupt(data_dir)
+    for entry in entries:
+        downloaded, skipped, failed = process_entry(
+            entry, data_dir, state, known_missing,
+            downloaded, skipped, failed,
+            push_manifest,
+        )
 
     return downloaded, skipped, failed
-
-
-def _handle_interrupt(data_dir: Path) -> None:
-    """Handle keyboard interrupt by cleaning up temporary files.
-
-    Args:
-        data_dir: Base data directory for cleanup.
-    """
-    interruptible = InterruptibleDownload(data_dir)
-    interruptible.cleanup()
-    logger.info("Download interrupted by user.")
-
-
-# Aliases para compatibilidade com testes
-_backup_existing_file = backup_existing_file
-_cleanup_stale_tmp = cleanup_stale_tmp
-_download_entry = download_and_verify
-_handle_download_error = handle_download_error
-_make_result = make_result
-_process_entry = process_entry
-_resolve_data_dir = resolve_data_dir
-_safe_unlink = safe_unlink
-should_skip_download = should_skip_download

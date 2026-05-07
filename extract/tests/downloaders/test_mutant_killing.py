@@ -7,19 +7,17 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from extract.downloader.downloader import (
-    _process_entry,
-    run,
-)
-from extract.downloader.downloader_actions import apply_mode as _apply_mode
+from extract.downloader.ops import process_entry as _process_entry
+from extract.downloader.downloader import run
+from extract.downloader.actions import apply_mode as _apply_mode
 from extract.core.state import CatalogEntry, ErrorType
 
 
 class TestRunKeyboardInterrupt:
     """Kills mutant: except block body replaced with pass."""
 
-    def test_run_keyboard_interrupt_triggers_cleanup(self, tmp_path: Path):
-        """Verify run() completes gracefully when Catalog.generate raises KeyboardInterrupt."""
+    def test_run_empty_catalog_returns_zero_result(self, tmp_path: Path):
+        """Verify run() returns zero result when Catalog.generate returns empty list."""
         mock_state = MagicMock()
         mock_known_missing = MagicMock()
         mock_catalog = MagicMock()
@@ -74,7 +72,7 @@ class TestProcessEntryIsDownloaded:
         state.is_downloaded.return_value = True
 
         with patch(
-            "extract.downloader.downloader_ops.download_and_verify",
+            "extract.downloader.ops.download_and_verify",
             return_value="downloaded",
         ):
             downloaded, skipped, failed = _process_entry(
@@ -100,7 +98,7 @@ class TestProcessEntryExceptionHandler:
         state.log_error.return_value = None
 
         with patch(
-            "extract.downloader.downloader_ops.download_and_verify",
+            "extract.downloader.ops.download_and_verify",
             side_effect=ValueError("unexpected failure"),
         ):
             downloaded, skipped, failed = _process_entry(

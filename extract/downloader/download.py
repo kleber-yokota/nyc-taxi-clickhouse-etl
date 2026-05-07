@@ -7,9 +7,9 @@ from pathlib import Path
 
 import requests
 
-from extract.downloader.downloader_util import backup_existing_file
-from extract.downloader.downloader_util import cleanup_stale_tmp
-from extract.downloader.downloader_util import safe_unlink
+from extract.downloader.utils import backup_existing_file
+from extract.downloader.utils import cleanup_stale_tmp
+from extract.downloader.utils import safe_unlink
 from extract.core.known_missing import KnownMissing
 from extract.core.state import CatalogEntry, ErrorType, compute_sha256
 from extract.core.state_manager import State
@@ -34,8 +34,8 @@ def download_and_verify(
     Returns:
         "downloaded", "skipped", or "failed".
     """
-    target_path = data_dir / entry.target_dir / entry.filename
-    tmp_path = data_dir / entry.target_dir / (entry.filename + ".download.tmp")
+    target_path = data_dir / entry.data_type / entry.filename
+    tmp_path = data_dir / entry.data_type / (entry.filename + ".download.tmp")
 
     cleanup_stale_tmp(tmp_path)
 
@@ -70,14 +70,15 @@ def download_and_verify(
     except Exception as e:
         safe_unlink(tmp_path)
         state.log_error(entry.url, ErrorType.UNKNOWN, f"Unexpected error: {type(e).__name__}")
-        raise
+        logger.exception("Unexpected error downloading %s", entry.url)
+        return "failed"
 
 
 def handle_download_error(
-    e: Exception,
+    e: requests.HTTPError,
     entry: CatalogEntry,
     state: State,
-    known_missing: object,
+    known_missing: KnownMissing,
 ) -> None:
     """Handle download errors and record them.
 
@@ -104,7 +105,7 @@ def handle_download_error(
         logger.error("Unexpected error for %s: %s", entry.url, e)
 
 
-def _log_http_error(e: requests.HTTPError, url: str, state: State, known_missing: object | None) -> None:
+def _log_http_error(e: requests.HTTPError, url: str, state: State, known_missing: KnownMissing | None) -> None:
     """Log HTTP error and record missing files.
 
     Args:
@@ -113,6 +114,8 @@ def _log_http_error(e: requests.HTTPError, url: str, state: State, known_missing
         state: The download state tracker.
         known_missing: Known missing URLs tracker (optional).
     """
+    if not isinstance(e, requests.HTTPError):
+        return
     status_code = e.response.status_code
     if status_code == 404:
         state.log_error(url, ErrorType.MISSING_FILE, f"HTTP {status_code}")

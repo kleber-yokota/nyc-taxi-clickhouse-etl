@@ -9,7 +9,7 @@ from unittest.mock import MagicMock
 import pytest
 import requests
 
-from extract.downloader.downloader_download import _log_http_error
+from extract.downloader.download import _log_http_error
 from extract.core.state import ErrorType
 
 
@@ -66,7 +66,7 @@ class TestLogHttpError404:
         error.response = MagicMock()
         error.response.status_code = 404
 
-        with caplog.at_level(logging.ERROR, logger="extract.downloader.downloader_download"):
+        with caplog.at_level(logging.ERROR, logger="extract.downloader.download"):
             _log_http_error(error, "https://example.com/missing.parquet", state, known_missing)
 
         assert any("File not found" in r.message for r in caplog.records)
@@ -112,7 +112,7 @@ class TestLogHttpErrorNon404:
         error.response = MagicMock()
         error.response.status_code = 500
 
-        with caplog.at_level(logging.ERROR, logger="extract.downloader.downloader_download"):
+        with caplog.at_level(logging.ERROR, logger="extract.downloader.download"):
             _log_http_error(error, "https://example.com/file.parquet", state, known_missing)
 
         assert any("HTTP error" in r.message for r in caplog.records)

@@ -1,4 +1,4 @@
-"""Tests for handle_download_error in downloader_download module."""
+"""Tests for handle_download_error in download module."""
 
 from __future__ import annotations
 
@@ -15,7 +15,7 @@ class TestHandleDownloadError:
     def test_404_calls_log_error_with_missing_file(self):
         import requests
 
-        from extract.downloader.downloader_download import handle_download_error
+        from extract.downloader.download import handle_download_error
 
         error = requests.HTTPError()
         error.response = MagicMock()
@@ -35,7 +35,7 @@ class TestHandleDownloadError:
     def test_404_adds_url_to_known_missing(self):
         import requests
 
-        from extract.downloader.downloader_download import handle_download_error
+        from extract.downloader.download import handle_download_error
 
         error = requests.HTTPError()
         error.response = MagicMock()
@@ -52,7 +52,7 @@ class TestHandleDownloadError:
     def test_500_calls_log_error_with_http_error(self):
         import requests
 
-        from extract.downloader.downloader_download import handle_download_error
+        from extract.downloader.download import handle_download_error
 
         error = requests.HTTPError()
         error.response = MagicMock()
@@ -71,7 +71,7 @@ class TestHandleDownloadError:
     def test_500_does_not_add_to_known_missing(self):
         import requests
 
-        from extract.downloader.downloader_download import handle_download_error
+        from extract.downloader.download import handle_download_error
 
         error = requests.HTTPError()
         error.response = MagicMock()
@@ -88,7 +88,7 @@ class TestHandleDownloadError:
     def test_network_error_sets_network_error_type(self):
         import requests
 
-        from extract.downloader.downloader_download import handle_download_error
+        from extract.downloader.download import handle_download_error
 
         error = requests.ConnectionError("connection refused")
 
@@ -103,7 +103,7 @@ class TestHandleDownloadError:
         assert args[0][1] == ErrorType.NETWORK_ERROR
 
     def test_generic_exception_sets_unknown_type(self):
-        from extract.downloader.downloader_download import handle_download_error
+        from extract.downloader.download import handle_download_error
 
         error = ValueError("disk full")
 
@@ -120,7 +120,7 @@ class TestHandleDownloadError:
     def test_400_status_sets_http_error(self):
         import requests
 
-        from extract.downloader.downloader_download import handle_download_error
+        from extract.downloader.download import handle_download_error
 
         error = requests.HTTPError()
         error.response = MagicMock()
@@ -140,7 +140,7 @@ class TestHandleDownloadError:
     def test_502_status_sets_http_error(self):
         import requests
 
-        from extract.downloader.downloader_download import handle_download_error
+        from extract.downloader.download import handle_download_error
 
         error = requests.HTTPError()
         error.response = MagicMock()
@@ -159,7 +159,7 @@ class TestHandleDownloadError:
     def test_timeout_sets_network_error(self):
         import requests
 
-        from extract.downloader.downloader_download import handle_download_error
+        from extract.downloader.download import handle_download_error
 
         error = requests.Timeout("request timed out")
 

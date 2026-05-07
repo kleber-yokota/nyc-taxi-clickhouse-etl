@@ -1,4 +1,4 @@
-"""Tests for downloader_util functions (backup, cleanup, safe_unlink, error handlers)."""
+"""Tests for utils functions (backup, cleanup, safe_unlink, error handlers)."""
 
 from __future__ import annotations
 
@@ -8,13 +8,13 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from extract.downloader.downloader_util import (
+from extract.downloader.utils import (
     backup_existing_file,
     cleanup_stale_tmp,
-    handle_http_error,
     handle_network_error,
     safe_unlink,
 )
+from extract.downloader.download import _log_http_error
 from extract.core.state import ErrorType
 from extract.core.state_manager import State
 
@@ -37,7 +37,7 @@ class TestBackupExistingFile:
         target = tmp_path / "test.parquet"
         target.write_bytes(b"content")
 
-        with caplog.at_level(logging.INFO, logger="extract.downloader.downloader_util"):
+        with caplog.at_level(logging.INFO, logger="extract.downloader.utils"):
             backup_existing_file(target)
 
         assert any("Backed up old file" in record.message for record in caplog.records)
@@ -95,7 +95,7 @@ class TestHandleHttpError:
         error.response = MagicMock()
         error.response.status_code = 404
 
-        handle_http_error(error, entry_url, state, known_missing)
+        _log_http_error(error, entry_url, state, known_missing)
 
         state_errors = state._errors_dir / "download_errors.log"
         assert state_errors.exists()
@@ -112,7 +112,7 @@ class TestHandleHttpError:
         error.response = MagicMock()
         error.response.status_code = 500
 
-        handle_http_error(error, entry_url, state, known_missing)
+        _log_http_error(error, entry_url, state, known_missing)
 
         state_errors = state._errors_dir / "download_errors.log"
         assert state_errors.exists()
@@ -123,7 +123,7 @@ class TestHandleHttpError:
         state = State(tmp_path / "state.json")
         known_missing = MagicMock()
 
-        handle_http_error(ValueError("not http"), entry_url, state, known_missing)
+        _log_http_error(ValueError("not http"), entry_url, state, known_missing)
 
         state_errors = state._errors_dir / "download_errors.log"
         assert not state_errors.exists()
@@ -138,7 +138,7 @@ class TestHandleHttpError:
         error.response = MagicMock()
         error.response.status_code = 404
 
-        handle_http_error(error, entry_url, state, None)
+        _log_http_error(error, entry_url, state, None)
 
         state_errors = state._errors_dir / "download_errors.log"
         assert state_errors.exists()
@@ -168,7 +168,7 @@ class TestHandleNetworkError:
 
         error = requests.Timeout("timeout")
 
-        with caplog.at_level(logging.ERROR, logger="extract.downloader.downloader_util"):
+        with caplog.at_level(logging.ERROR, logger="extract.downloader.utils"):
             handle_network_error(error, entry_url, state)
 
         assert any("Network error" in record.message for record in caplog.records)

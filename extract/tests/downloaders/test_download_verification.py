@@ -1,4 +1,4 @@
-"""Tests targeting mutmut survivors in downloader_download module.
+"""Tests targeting mutmut survivors in download module.
 
 Kills survived mutations in:
 - download_and_verify (tmp_path, state.log_error args, logger.error args)
@@ -17,7 +17,7 @@ from unittest.mock import MagicMock, call, patch
 import pytest
 import responses as responses_lib
 
-from extract.downloader.downloader_download import (
+from extract.downloader.download import (
     _fetch_content,
     _log_http_error,
     download_and_verify,
@@ -50,12 +50,12 @@ class TestDownloadAndVerifyTmpPath:
 
         with responses_lib.RequestsMock(assert_all_requests_are_fired=False) as rsps:
             rsps.add(responses_lib.GET, entry.url, body=b"data", status=200)
-            with patch("extract.downloader.downloader_download._fetch_content") as mock_fetch:
-                with patch("extract.downloader.downloader_download.compute_sha256", return_value="abc123"):
-                    with patch("extract.downloader.downloader_download.cleanup_stale_tmp") as mock_cleanup:
-                        with patch("extract.downloader.downloader_download.backup_existing_file"):
-                            with patch("extract.downloader.downloader_download.safe_unlink"):
-                                with patch("extract.downloader.downloader_download.Path.rename"):
+            with patch("extract.downloader.download._fetch_content") as mock_fetch:
+                with patch("extract.downloader.download.compute_sha256", return_value="abc123"):
+                    with patch("extract.downloader.download.cleanup_stale_tmp") as mock_cleanup:
+                        with patch("extract.downloader.download.backup_existing_file"):
+                            with patch("extract.downloader.download.safe_unlink"):
+                                with patch("extract.downloader.download.Path.rename"):
                                     download_and_verify(entry, data_dir, mock_state, mock_known_missing)
 
         # Verify cleanup_stale_tmp was called with the correct tmp_path
@@ -201,7 +201,7 @@ class TestDownloadAndVerifyLoggerErrorArgs:
                 body=requests.exceptions.ConnectionError("connection refused"),
                 status=500,
             )
-            with caplog.at_level(logging.ERROR, logger="extract.downloader.downloader_download"):
+            with caplog.at_level(logging.ERROR, logger="extract.downloader.download"):
                 download_and_verify(entry, data_dir, mock_state, mock_known_missing)
 
         # Verify the log message contains the exact URL
@@ -224,7 +224,7 @@ class TestDownloadAndVerifyLoggerErrorArgs:
                 body=requests.exceptions.ConnectionError("connection refused"),
                 status=500,
             )
-            with caplog.at_level(logging.ERROR, logger="extract.downloader.downloader_download"):
+            with caplog.at_level(logging.ERROR, logger="extract.downloader.download"):
                 download_and_verify(entry, data_dir, mock_state, mock_known_missing)
 
         # Verify the log message contains "ConnectionError" not "None" or "type"
@@ -252,7 +252,7 @@ class TestHandleDownloadErrorLoggerArgs:
         error.response = MagicMock()
         error.response.status_code = 404
 
-        with caplog.at_level(logging.ERROR, logger="extract.downloader.downloader_download"):
+        with caplog.at_level(logging.ERROR, logger="extract.downloader.download"):
             handle_download_error(error, entry, state, known_missing)
 
         # Verify the log message contains the exact URL
@@ -272,7 +272,7 @@ class TestHandleDownloadErrorLoggerArgs:
         error.response = MagicMock()
         error.response.status_code = 404
 
-        with caplog.at_level(logging.ERROR, logger="extract.downloader.downloader_download"):
+        with caplog.at_level(logging.ERROR, logger="extract.downloader.download"):
             handle_download_error(error, entry, state, known_missing)
 
         error_records = [r for r in caplog.records if "not found" in r.message.lower() and "recording" in r.message.lower()]
@@ -293,7 +293,7 @@ class TestHandleDownloadErrorLoggerArgs:
         error.response = MagicMock()
         error.response.status_code = 500
 
-        with caplog.at_level(logging.ERROR, logger="extract.downloader.downloader_download"):
+        with caplog.at_level(logging.ERROR, logger="extract.downloader.download"):
             handle_download_error(error, entry, state, known_missing)
 
         assert any(entry.url in record.message for record in caplog.records)
@@ -308,7 +308,7 @@ class TestHandleDownloadErrorLoggerArgs:
 
         error = requests.ConnectionError("connection refused")
 
-        with caplog.at_level(logging.ERROR, logger="extract.downloader.downloader_download"):
+        with caplog.at_level(logging.ERROR, logger="extract.downloader.download"):
             handle_download_error(error, entry, state, known_missing)
 
         error_records = [r for r in caplog.records if "Network error" in r.message]
@@ -322,7 +322,7 @@ class TestHandleDownloadErrorLoggerArgs:
         state = State(tmp_path / "state.json")
         known_missing = MagicMock()
 
-        with caplog.at_level(logging.ERROR, logger="extract.downloader.downloader_download"):
+        with caplog.at_level(logging.ERROR, logger="extract.downloader.download"):
             handle_download_error(ValueError("unexpected"), entry, state, known_missing)
 
         assert any(entry.url in record.message for record in caplog.records)
@@ -333,7 +333,7 @@ class TestHandleDownloadErrorLoggerArgs:
         state = State(tmp_path / "state.json")
         known_missing = MagicMock()
 
-        with caplog.at_level(logging.ERROR, logger="extract.downloader.downloader_download"):
+        with caplog.at_level(logging.ERROR, logger="extract.downloader.download"):
             handle_download_error(ValueError("unexpected"), entry, state, known_missing)
 
         error_records = [r for r in caplog.records if "unexpected" in r.message]
@@ -354,7 +354,7 @@ class TestLogHttpErrorLoggerArgs:
         error.response = MagicMock()
         error.response.status_code = 404
 
-        with caplog.at_level(logging.ERROR, logger="extract.downloader.downloader_download"):
+        with caplog.at_level(logging.ERROR, logger="extract.downloader.download"):
             _log_http_error(error, url, state, None)
 
         assert any(url in record.message for record in caplog.records)
@@ -369,7 +369,7 @@ class TestLogHttpErrorLoggerArgs:
         error.response = MagicMock()
         error.response.status_code = 404
 
-        with caplog.at_level(logging.ERROR, logger="extract.downloader.downloader_download"):
+        with caplog.at_level(logging.ERROR, logger="extract.downloader.download"):
             _log_http_error(error, url, state, None)
 
         error_records = [r for r in caplog.records if "not found" in r.message.lower()]
@@ -386,7 +386,7 @@ class TestLogHttpErrorLoggerArgs:
         error.response = MagicMock()
         error.response.status_code = 500
 
-        with caplog.at_level(logging.ERROR, logger="extract.downloader.downloader_download"):
+        with caplog.at_level(logging.ERROR, logger="extract.downloader.download"):
             _log_http_error(error, url, state, None)
 
         assert any(url in record.message for record in caplog.records)
@@ -401,7 +401,7 @@ class TestFetchContentRequestsArgs:
         """
         tmp_file = tmp_path / "output.parquet"
 
-        with patch("extract.downloader.downloader_download.requests.get") as mock_get:
+        with patch("extract.downloader.download.requests.get") as mock_get:
             mock_response = MagicMock()
             mock_response.iter_content.return_value = [b"data"]
             mock_get.return_value = mock_response
@@ -418,7 +418,7 @@ class TestFetchContentRequestsArgs:
         """
         tmp_file = tmp_path / "output.parquet"
 
-        with patch("extract.downloader.downloader_download.requests.get") as mock_get:
+        with patch("extract.downloader.download.requests.get") as mock_get:
             mock_response = MagicMock()
             mock_response.iter_content.return_value = [b"data"]
             mock_get.return_value = mock_response
@@ -435,7 +435,7 @@ class TestFetchContentRequestsArgs:
         """
         tmp_file = tmp_path / "output.parquet"
 
-        with patch("extract.downloader.downloader_download.requests.get") as mock_get:
+        with patch("extract.downloader.download.requests.get") as mock_get:
             mock_response = MagicMock()
             mock_response.iter_content.return_value = [b"data"]
             mock_get.return_value = mock_response
@@ -474,13 +474,13 @@ class TestDownloadAndVerifyMkdirArgs:
                 body=b"data",
                 status=200,
             )
-            with patch("extract.downloader.downloader_download.cleanup_stale_tmp"):
-                with patch("extract.downloader.downloader_download.compute_sha256", return_value="abc123"):
-                    with patch("extract.downloader.downloader_download.backup_existing_file"):
-                        with patch("extract.downloader.downloader_download.safe_unlink"):
-                            with patch("extract.downloader.downloader_download._fetch_content"):
-                                with patch("extract.downloader.downloader_download.Path.mkdir") as mock_mkdir:
-                                    with patch("extract.downloader.downloader_download.Path.rename"):
+            with patch("extract.downloader.download.cleanup_stale_tmp"):
+                with patch("extract.downloader.download.compute_sha256", return_value="abc123"):
+                    with patch("extract.downloader.download.backup_existing_file"):
+                        with patch("extract.downloader.download.safe_unlink"):
+                            with patch("extract.downloader.download._fetch_content"):
+                                with patch("extract.downloader.download.Path.mkdir") as mock_mkdir:
+                                    with patch("extract.downloader.download.Path.rename"):
                                         download_and_verify(entry, data_dir, mock_state, mock_known_missing)
 
         # Verify mkdir was called with parents=True

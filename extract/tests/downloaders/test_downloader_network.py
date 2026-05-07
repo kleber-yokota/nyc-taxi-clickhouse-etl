@@ -8,11 +8,8 @@ from unittest.mock import patch
 import pytest
 import responses
 
-from extract.downloader.downloader import (
-    _fetch_content,
-    _handle_http_error,
-    _handle_network_error,
-)
+from extract.downloader.download import _fetch_content, _log_http_error
+from extract.downloader.utils import handle_network_error as _handle_network_error
 from extract.core.state import ErrorType
 from extract.core.state_manager import State
 
@@ -31,7 +28,7 @@ class TestHandleHttpError:
         http_error = requests.HTTPError()
         http_error.response = MockResponse()
 
-        _handle_http_error(http_error, "https://example.com/file.parquet", state, known_missing)
+        _log_http_error(http_error, "https://example.com/file.parquet", state, known_missing)
         assert known_missing.is_missing("https://example.com/file.parquet")
 
     def test_500_records_http_error(self, tmp_path: Path):
@@ -46,7 +43,7 @@ class TestHandleHttpError:
         http_error = requests.HTTPError()
         http_error.response = MockResponse()
 
-        _handle_http_error(http_error, "https://example.com/file.parquet", state, known_missing)
+        _log_http_error(http_error, "https://example.com/file.parquet", state, known_missing)
         error_log = state._errors_dir / "download_errors.log"
         assert error_log.exists()
 
@@ -97,7 +94,7 @@ class TestHandleHttpErrorKnownMissing:
         http_error = requests.HTTPError()
         http_error.response = MockResponse()
 
-        _handle_http_error(http_error, "https://example.com/file.parquet", state, known_missing)
+        _log_http_error(http_error, "https://example.com/file.parquet", state, known_missing)
         assert known_missing.is_missing("https://example.com/file.parquet")
 
     def test_non_404_does_not_call_known_missing(self, tmp_path: Path):
@@ -112,7 +109,7 @@ class TestHandleHttpErrorKnownMissing:
         http_error = requests.HTTPError()
         http_error.response = MockResponse()
 
-        _handle_http_error(http_error, "https://example.com/file.parquet", state, known_missing)
+        _log_http_error(http_error, "https://example.com/file.parquet", state, known_missing)
         assert not known_missing.is_missing("https://example.com/file.parquet")
 
     def test_handles_non_http_error(self, tmp_path: Path):
@@ -120,7 +117,7 @@ class TestHandleHttpErrorKnownMissing:
         from extract.core.known_missing import KnownMissing
         known_missing = KnownMissing(tmp_path / "known_missing.txt")
 
-        _handle_http_error(ValueError("unexpected"), "https://example.com/file.parquet", state, known_missing)
+        _log_http_error(ValueError("unexpected"), "https://example.com/file.parquet", state, known_missing)
 
         # Non-HTTP errors don't trigger any logging in handle_http_error
         # because the first check is isinstance(e, requests.HTTPError)

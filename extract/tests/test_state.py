@@ -74,6 +74,12 @@ class TestComputeSha256:
         hash2 = compute_sha256(file2)
         assert hash1 != hash2
 
+    def test_compute_sha256_known_content(self, tmp_path: Path):
+        test_file = tmp_path / "test.bin"
+        test_file.write_bytes(b"hello world")
+        expected = hashlib.sha256(b"hello world").hexdigest()
+        assert compute_sha256(test_file) == expected
+
 
 class TestBuildUrl:
     """Tests for build_url function."""

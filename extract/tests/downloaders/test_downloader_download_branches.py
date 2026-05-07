@@ -1,4 +1,4 @@
-"""Tests for _fetch_content function in downloader_download module."""
+"""Tests for _fetch_content function in download module."""
 
 from __future__ import annotations
 
@@ -8,7 +8,7 @@ from pathlib import Path
 import pytest
 import responses as responses_lib
 
-from extract.downloader.downloader_download import _fetch_content
+from extract.downloader.download import _fetch_content
 
 
 class TestFetchContent:

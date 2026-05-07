@@ -11,10 +11,27 @@ from .state import compute_sha256
 
 logger = logging.getLogger(__name__)
 
+# Module-level signal handlers set once to avoid conflicts with
+# other code that calls signal.signal() (e.g. KeyboardInterrupt handlers).
+# We save the previous handler so we can chain it.
+_SIGNAL_SET = False
+_OLD_SIGINT = None
+_OLD_SIGTERM = None
 
-def _handle_signal(signum: int, _frame: Any) -> None:
-    """Handle interrupt signals by logging and deferring cleanup."""
-    logger.info("Interrupt signal received (signal %d)", signum)
+
+def _ensure_signal_handler() -> None:
+    """Register interrupt signal handlers exactly once at module level."""
+    global _SIGNAL_SET, _OLD_SIGINT, _OLD_SIGTERM
+    if _SIGNAL_SET:
+        return
+
+    def _handle_signal(signum: int, _frame: Any) -> None:
+        """Handle interrupt signals by logging and deferring cleanup."""
+        logger.info("Interrupt signal received (signal %d)", signum)
+
+    _OLD_SIGINT = signal.signal(signal.SIGINT, _handle_signal)
+    _OLD_SIGTERM = signal.signal(signal.SIGTERM, _handle_signal)
+    _SIGNAL_SET = True
 
 
 class InterruptibleDownload:
@@ -28,8 +45,7 @@ class InterruptibleDownload:
         """
         self.data_dir = data_dir
         self._tmp_path: Path | None = None
-        signal.signal(signal.SIGINT, _handle_signal)
-        signal.signal(signal.SIGTERM, _handle_signal)
+        _ensure_signal_handler()
 
     def cleanup(self) -> None:
         """Remove any active temporary download file."""

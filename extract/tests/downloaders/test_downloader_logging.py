@@ -1,4 +1,4 @@
-"""Tests for _log_http_error in downloader_download module."""
+"""Tests for _log_http_error in download module."""
 
 from __future__ import annotations
 
@@ -13,7 +13,7 @@ class TestLogHttpError:
     def test_404_logs_missing_and_adds_to_known(self):
         import requests
 
-        from extract.downloader.downloader_download import _log_http_error
+        from extract.downloader.download import _log_http_error
 
         error = requests.HTTPError()
         error.response = MagicMock()
@@ -32,7 +32,7 @@ class TestLogHttpError:
     def test_404_with_none_known_missing(self):
         import requests
 
-        from extract.downloader.downloader_download import _log_http_error
+        from extract.downloader.download import _log_http_error
 
         error = requests.HTTPError()
         error.response = MagicMock()
@@ -49,7 +49,7 @@ class TestLogHttpError:
     def test_500_logs_http_error_no_known_missing_add(self):
         import requests
 
-        from extract.downloader.downloader_download import _log_http_error
+        from extract.downloader.download import _log_http_error
 
         error = requests.HTTPError()
         error.response = MagicMock()
@@ -68,7 +68,7 @@ class TestLogHttpError:
     def test_401_status_logs_http_error(self):
         import requests
 
-        from extract.downloader.downloader_download import _log_http_error
+        from extract.downloader.download import _log_http_error
 
         error = requests.HTTPError()
         error.response = MagicMock()
@@ -85,7 +85,7 @@ class TestLogHttpError:
     def test_503_status_logs_http_error(self):
         import requests
 
-        from extract.downloader.downloader_download import _log_http_error
+        from extract.downloader.download import _log_http_error
 
         error = requests.HTTPError()
         error.response = MagicMock()

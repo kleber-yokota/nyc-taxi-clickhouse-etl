@@ -8,7 +8,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from extract.downloader.downloader_ops import process_entry
+from extract.downloader.ops import process_entry
 from extract.core.state import CatalogEntry
 from extract.core.state_manager import State
 
@@ -24,7 +24,7 @@ class TestProcessEntryDownloaded:
         known_missing = KnownMissing(tmp_path / "known_missing.txt")
 
         with patch(
-            "extract.downloader.downloader_ops.download_and_verify",
+            "extract.downloader.ops.download_and_verify",
             return_value="downloaded",
         ):
             result = process_entry(entry, tmp_path, state, known_missing, 0, 0, 0)
@@ -39,7 +39,7 @@ class TestProcessEntryDownloaded:
         known_missing = KnownMissing(tmp_path / "known_missing.txt")
 
         with patch(
-            "extract.downloader.downloader_ops.download_and_verify",
+            "extract.downloader.ops.download_and_verify",
             return_value="downloaded",
         ):
             result = process_entry(entry, tmp_path, state, known_missing, 10, 5, 3)
@@ -54,7 +54,7 @@ class TestProcessEntryDownloaded:
         known_missing = KnownMissing(tmp_path / "known_missing.txt")
 
         with patch(
-            "extract.downloader.downloader_ops.download_and_verify",
+            "extract.downloader.ops.download_and_verify",
             return_value="downloaded",
         ) as mock_download:
             process_entry(entry, tmp_path, state, known_missing, 0, 0, 0)

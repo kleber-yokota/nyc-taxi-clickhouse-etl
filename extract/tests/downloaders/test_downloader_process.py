@@ -1,11 +1,11 @@
-"""Tests for _process_entry function in downloader_ops module."""
+"""Tests for _process_entry function in ops module."""
 
 from __future__ import annotations
 
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-from extract.downloader.downloader import _process_entry
+from extract.downloader.ops import process_entry as _process_entry
 from extract.core.state import CatalogEntry, ErrorType
 
 
@@ -32,7 +32,7 @@ class TestProcessEntry:
         known_missing_mock.is_missing.return_value = False
 
         with patch(
-            "extract.downloader.downloader_ops.download_and_verify", return_value="downloaded"
+            "extract.downloader.ops.download_and_verify", return_value="downloaded"
         ):
             result = _process_entry(
                 entry, Path("."), state, known_missing_mock, 0, 0, 0
@@ -50,7 +50,7 @@ class TestProcessEntry:
         target_dir = tmp_path / "yellow"
         target_dir.mkdir()
 
-        with patch("extract.downloader.downloader_ops.download_and_verify", return_value="downloaded"):
+        with patch("extract.downloader.ops.download_and_verify", return_value="downloaded"):
             _process_entry(
                 entry, tmp_path, state, known_missing, 0, 0, 0
             )
@@ -79,7 +79,7 @@ class TestProcessEntry:
         known_missing.is_missing.return_value = False
 
         with patch(
-            "extract.downloader.downloader_ops.download_and_verify", return_value="downloaded"
+            "extract.downloader.ops.download_and_verify", return_value="downloaded"
         ):
             result = _process_entry(
                 entry, Path("."), state, known_missing, 0, 0, 0
@@ -95,7 +95,7 @@ class TestProcessEntry:
         known_missing.is_missing.return_value = False
 
         with patch(
-            "extract.downloader.downloader_ops.download_and_verify", return_value="skipped"
+            "extract.downloader.ops.download_and_verify", return_value="skipped"
         ):
             result = _process_entry(
                 entry, Path("."), state, known_missing, 0, 0, 0
@@ -111,7 +111,7 @@ class TestProcessEntry:
         known_missing.is_missing.return_value = False
 
         with patch(
-            "extract.downloader.downloader_ops.download_and_verify", return_value="failed"
+            "extract.downloader.ops.download_and_verify", return_value="failed"
         ):
             result = _process_entry(
                 entry, Path("."), state, known_missing, 0, 0, 0
@@ -127,7 +127,7 @@ class TestProcessEntry:
         known_missing.is_missing.return_value = False
 
         with patch(
-            "extract.downloader.downloader_ops.download_and_verify",
+            "extract.downloader.ops.download_and_verify",
             side_effect=RuntimeError("boom"),
         ):
             result = _process_entry(

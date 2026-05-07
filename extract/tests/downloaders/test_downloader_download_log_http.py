@@ -1,4 +1,4 @@
-"""Tests for _log_http_error and _fetch_content in downloader_download module."""
+"""Tests for _log_http_error and _fetch_content in download module."""
 
 from __future__ import annotations
 
@@ -9,7 +9,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 import responses as responses_lib
 
-from extract.downloader.downloader_download import (
+from extract.downloader.download import (
     _fetch_content,
     _log_http_error,
 )

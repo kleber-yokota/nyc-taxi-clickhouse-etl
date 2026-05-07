@@ -9,8 +9,8 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from extract.downloader.downloader import run
-from extract.downloader.downloader_actions import make_result as _make_result
-from extract.downloader.downloader_actions import log_download_complete as _log_download_complete
+from extract.downloader.actions import make_result as _make_result
+from extract.downloader.actions import log_download_complete as _log_download_complete
 
 
 class TestRunProcessEntryCall:
@@ -99,7 +99,7 @@ class TestRunResultStructure:
 
     def test_make_result_with_none_values(self, tmp_path: Path):
         """Verify _make_result handles None values correctly (they become 0 in result)."""
-        from extract.downloader.downloader import _make_result
+        from extract.downloader.actions import make_result as _make_result
 
         # If counters were None (mutation), they should still be int in result
         result = _make_result(None, None, None, 0)
@@ -114,7 +114,7 @@ class TestRunResultStructure:
         """Verify logger.info is called with result dict."""
         result = {"downloaded": 5, "skipped": 3, "failed": 2, "total": 10}
 
-        with caplog.at_level(logging.INFO, logger="extract.downloader.downloader_actions"):
+        with caplog.at_level(logging.INFO, logger="extract.downloader.actions"):
             _log_download_complete(result)
 
         assert any("Download complete" in r.message for r in caplog.records)
@@ -124,7 +124,7 @@ class TestRunResultStructure:
         """Verify logger.info is called even with zero result."""
         result = {"downloaded": 0, "skipped": 0, "failed": 0, "total": 0}
 
-        with caplog.at_level(logging.INFO, logger="extract.downloader.downloader_actions"):
+        with caplog.at_level(logging.INFO, logger="extract.downloader.actions"):
             _log_download_complete(result)
 
         assert any("Download complete" in r.message for r in caplog.records)

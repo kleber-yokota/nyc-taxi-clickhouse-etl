@@ -9,7 +9,7 @@ from unittest.mock import MagicMock
 import pytest
 import requests
 
-from extract.downloader.downloader_download import handle_download_error
+from extract.downloader.download import handle_download_error
 from extract.core.state import CatalogEntry, ErrorType
 
 
@@ -56,7 +56,7 @@ class TestHandleDownloadError404:
         error.response = MagicMock()
         error.response.status_code = 404
 
-        with caplog.at_level(logging.ERROR, logger="extract.downloader.downloader_download"):
+        with caplog.at_level(logging.ERROR, logger="extract.downloader.download"):
             handle_download_error(error, entry, state, known_missing)
 
         assert any("File not found" in r.message for r in caplog.records)
@@ -106,7 +106,7 @@ class TestHandleDownloadErrorNon404:
         error.response = MagicMock()
         error.response.status_code = 500
 
-        with caplog.at_level(logging.ERROR, logger="extract.downloader.downloader_download"):
+        with caplog.at_level(logging.ERROR, logger="extract.downloader.download"):
             handle_download_error(error, entry, state, known_missing)
 
         assert any("HTTP error" in r.message for r in caplog.records)
@@ -178,7 +178,7 @@ class TestHandleDownloadErrorNetwork:
 
         error = requests.RequestException("connection refused")
 
-        with caplog.at_level(logging.ERROR, logger="extract.downloader.downloader_download"):
+        with caplog.at_level(logging.ERROR, logger="extract.downloader.download"):
             handle_download_error(error, entry, state, known_missing)
 
         assert any("Network error" in r.message for r in caplog.records)

@@ -1,4 +1,4 @@
-"""Tests targeting mutmut survivors in downloader_ops and downloader_util."""
+"""Tests targeting mutmut survivors in ops and utils."""
 
 from __future__ import annotations
 
@@ -8,13 +8,13 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from extract.downloader.downloader_ops import process_entry, should_skip_download
+from extract.downloader.ops import process_entry, should_skip_download
 from extract.core.state import CatalogEntry, ErrorType
-from extract.downloader.downloader_util import (
+from extract.downloader.utils import (
     backup_existing_file,
-    handle_http_error,
     handle_network_error,
 )
+from extract.downloader.download import _log_http_error
 from extract.core.state_manager import State
 
 
@@ -103,7 +103,7 @@ class TestProcessEntrySkipPath:
         known_missing.is_missing.return_value = True
 
         with patch(
-            "extract.downloader.downloader_ops.download_and_verify",
+            "extract.downloader.ops.download_and_verify",
             side_effect=RuntimeError("should not be called"),
         ) as mock_download:
             result = process_entry(entry, tmp_path, state, known_missing, 0, 0, 0)
@@ -121,7 +121,7 @@ class TestProcessEntrySkipPath:
         known_missing.is_missing.return_value = True
 
         with patch(
-            "extract.downloader.downloader_ops.download_and_verify",
+            "extract.downloader.ops.download_and_verify",
             side_effect=RuntimeError("should not be called"),
         ):
             result = process_entry(entry, tmp_path, state, known_missing, 10, 20, 5)
@@ -143,7 +143,7 @@ class TestProcessEntryResultHandling:
         known_missing.is_missing.return_value = False
 
         with patch(
-            "extract.downloader.downloader_ops.download_and_verify", return_value="skipped"
+            "extract.downloader.ops.download_and_verify", return_value="skipped"
         ):
             result = process_entry(entry, tmp_path, state, known_missing, 10, 20, 5)
 
@@ -158,7 +158,7 @@ class TestProcessEntryResultHandling:
         known_missing.is_missing.return_value = False
 
         with patch(
-            "extract.downloader.downloader_ops.download_and_verify", return_value="failed"
+            "extract.downloader.ops.download_and_verify", return_value="failed"
         ):
             result = process_entry(entry, tmp_path, state, known_missing, 10, 20, 5)
 
@@ -175,7 +175,7 @@ class TestProcessEntryResultHandling:
         known_missing.is_missing.return_value = False
 
         with patch(
-            "extract.downloader.downloader_ops.download_and_verify",
+            "extract.downloader.ops.download_and_verify",
             side_effect=RuntimeError("download failed"),
         ):
             result = process_entry(entry, tmp_path, state, known_missing, 0, 0, 5)

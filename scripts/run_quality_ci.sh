@@ -16,11 +16,15 @@ CHANGED_FILES=("$@")
 echo "=== Quality Checks CI ==="
 echo ""
 
-# Discover all modules
+# Discover all modules: any top-level dir with Python source files and tests/
+# Excludes: mutants/, .venv/, build/, dist/, __pycache__, scripts/
 ALL_MODULES=()
 for dir in */; do
     dir="${dir%/}"
-    if [ -d "${dir}/core" ] && [ ! -d "mutants/${dir}" ]; then
+    case "$dir" in
+        mutants|.venv|build|dist|__pycache__|scripts|tests) continue ;;
+    esac
+    if [ -d "${dir}/tests" ] && [ "$(find "$dir" -maxdepth 2 -name "*.py" -not -path "*/tests/*" -not -name "conftest.py" 2>/dev/null | head -1)" ]; then
         ALL_MODULES+=("$dir")
     fi
 done
@@ -67,15 +71,16 @@ for module in "${MODULES[@]}"; do
     echo "Module: ${module}"
     echo "=============================="
 
-    CORE_DIR="${module}/core/"
-    if [ ! -d "$CORE_DIR" ]; then
-        echo "  WARNING: No core/ directory in ${module}, skipping"
-        continue
+    # Support both flat structure (etl/) and core/ structure (extract/, upload/)
+    if [ -d "${module}/core/" ]; then
+        CORE_DIR="${module}/core/"
+    else
+        CORE_DIR="${module}/"
     fi
 
     # 1. Coverage (≥ 85%)
     echo "  Running coverage..."
-    if ! uv run python -m coverage run --include="${module}/core/*.py" -m pytest "${module}/tests/" -q 2>&1; then
+    if ! uv run python -m coverage run --include="${CORE_DIR}*.py" -m pytest "${module}/tests/" -q 2>&1; then
         echo "  ERROR: pytest failed for ${module}"
         FAILED_MODULES+=("$module")
         continue

@@ -21,11 +21,15 @@ echo "=== Incremental Mutation Testing CI ==="
 echo "Threshold: ${THRESHOLD}%"
 echo ""
 
-# Discover all modules
+# Discover all modules: any top-level dir with Python source files and tests/
+# Excludes: mutants/, .venv/, build/, dist/, __pycache__, scripts/
 ALL_MODULES=()
 for dir in */; do
     dir="${dir%/}"
-    if [ -d "${dir}/core" ] && [ ! -d "mutants/${dir}" ]; then
+    case "$dir" in
+        mutants|.venv|build|dist|__pycache__|scripts|tests) continue ;;
+    esac
+    if [ -d "${dir}/tests" ] && [ "$(find "$dir" -maxdepth 2 -name "*.py" -not -path "*/tests/*" -not -name "conftest.py" 2>/dev/null | head -1)" ]; then
         ALL_MODULES+=("$dir")
     fi
 done

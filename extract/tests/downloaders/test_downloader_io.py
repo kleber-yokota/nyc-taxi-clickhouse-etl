@@ -8,13 +8,9 @@ from unittest.mock import MagicMock, patch
 import pytest
 import responses
 
-from extract.downloader.downloader import (
-    _backup_existing_file,
-    _fetch_content,
-    _handle_http_error,
-    _handle_network_error,
-    _safe_unlink,
-)
+from extract.downloader.utils import backup_existing_file as _backup_existing_file, safe_unlink as _safe_unlink
+from extract.downloader.download import _fetch_content, _log_http_error
+from extract.downloader.utils import handle_network_error as _handle_network_error
 from extract.core.state import CatalogEntry, ErrorType
 
 
@@ -42,7 +38,7 @@ class TestHandleHttpError:
         known_missing = MagicMock()
         url = "https://example.com/missing.parquet"
 
-        _handle_http_error(mock_404_error, url, state, known_missing)
+        _log_http_error(mock_404_error, url, state, known_missing)
 
         state.log_error.assert_called_once_with(
             url, ErrorType.MISSING_FILE, "HTTP 404"
@@ -53,7 +49,7 @@ class TestHandleHttpError:
         known_missing = MagicMock()
         url = "https://example.com/missing.parquet"
 
-        _handle_http_error(mock_404_error, url, state, known_missing)
+        _log_http_error(mock_404_error, url, state, known_missing)
 
         known_missing.add.assert_called_once_with(url)
 
@@ -62,7 +58,7 @@ class TestHandleHttpError:
         known_missing = MagicMock()
         url = "https://example.com/error.parquet"
 
-        _handle_http_error(mock_500_error, url, state, known_missing)
+        _log_http_error(mock_500_error, url, state, known_missing)
 
         state.log_error.assert_called_once_with(
             url, ErrorType.HTTP_ERROR, "HTTP 500"
@@ -73,7 +69,7 @@ class TestHandleHttpError:
         known_missing = MagicMock()
         url = "https://example.com/error.parquet"
 
-        _handle_http_error(mock_500_error, url, state, known_missing)
+        _log_http_error(mock_500_error, url, state, known_missing)
 
         known_missing.add.assert_not_called()
 
@@ -89,7 +85,7 @@ class TestHandleHttpError:
         known_missing = MagicMock()
         url = "https://example.com/test.parquet"
 
-        _handle_http_error(error, url, state, known_missing)
+        _log_http_error(error, url, state, known_missing)
 
         state.log_error.assert_called_once_with(
             url, ErrorType.HTTP_ERROR, f"HTTP {status_code}"

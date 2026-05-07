@@ -5,16 +5,13 @@ from __future__ import annotations
 import logging
 from pathlib import Path
 
-from extract.downloader.downloader_download import download_and_verify
-from extract.downloader.downloader_download import handle_download_error
+from extract.downloader.download import download_and_verify
+from extract.downloader.download import handle_download_error
 from extract.core.known_missing import KnownMissing
 from extract.core.state import CatalogEntry
 from extract.core.state_manager import State
 
 logger = logging.getLogger(__name__)
-
-
-
 
 
 def should_skip_download(
@@ -39,7 +36,7 @@ def should_skip_download(
         return True
 
     if state.is_downloaded(entry.url):
-        target_path = data_dir / entry.target_dir / entry.filename
+        target_path = data_dir / entry.data_type / entry.filename
         if target_path.exists():
             return True
         state.save(entry.url, "")

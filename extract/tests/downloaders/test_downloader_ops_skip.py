@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pytest
 
-from extract.downloader.downloader_ops import should_skip_download
+from extract.downloader.ops import should_skip_download
 from extract.core.state import CatalogEntry
 from extract.core.state_manager import State
 
@@ -35,7 +35,7 @@ class TestShouldSkipDownloadKnownMissing:
         known_missing = KnownMissing(tmp_path / "known_missing.txt")
         known_missing.add(entry.url)
 
-        with caplog.at_level(logging.INFO, logger="extract.downloader.downloader_ops"):
+        with caplog.at_level(logging.INFO, logger="extract.downloader.ops"):
             should_skip_download(entry, state, known_missing, tmp_path)
 
         assert any("Skipping known missing" in r.message for r in caplog.records)

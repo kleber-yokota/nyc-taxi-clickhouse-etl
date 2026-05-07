@@ -7,11 +7,9 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from extract.downloader.downloader import (
-    _process_entry,
-    run,
-)
-from extract.downloader.downloader_actions import apply_mode as _apply_mode
+from extract.downloader.ops import process_entry as _process_entry
+from extract.downloader.downloader import run
+from extract.downloader.actions import apply_mode as _apply_mode
 from extract.core.state import CatalogEntry, ErrorType
 
 
@@ -74,7 +72,7 @@ class TestProcessEntryIsDownloaded:
         state.is_downloaded.return_value = True
 
         with patch(
-            "extract.downloader.downloader_ops.download_and_verify",
+            "extract.downloader.ops.download_and_verify",
             return_value="downloaded",
         ):
             downloaded, skipped, failed = _process_entry(
@@ -100,7 +98,7 @@ class TestProcessEntryExceptionHandler:
         state.log_error.return_value = None
 
         with patch(
-            "extract.downloader.downloader_ops.download_and_verify",
+            "extract.downloader.ops.download_and_verify",
             side_effect=ValueError("unexpected failure"),
         ):
             downloaded, skipped, failed = _process_entry(

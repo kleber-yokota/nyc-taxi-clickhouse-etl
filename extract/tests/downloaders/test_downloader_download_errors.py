@@ -8,7 +8,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 import responses as responses_lib
 
-from extract.downloader.downloader_download import (
+from extract.downloader.download import (
     handle_download_error as _handle_download_error,
     _log_http_error,
 )

@@ -8,7 +8,7 @@ from pathlib import Path
 import pytest
 import responses as responses_lib
 
-from extract.downloader.downloader_download import _fetch_content
+from extract.downloader.download import _fetch_content
 
 
 class TestFetchContent:

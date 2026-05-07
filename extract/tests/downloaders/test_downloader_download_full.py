@@ -10,11 +10,11 @@ from unittest.mock import MagicMock, patch
 import pytest
 import responses as responses_lib
 
-from extract.downloader.downloader_download import (
+from extract.downloader.download import (
     download_and_verify,
     handle_download_error,
 )
-from extract.downloader.downloader_download import handle_download_error as _handle_download_error
+from extract.downloader.download import handle_download_error as _handle_download_error
 from extract.core.state import CatalogEntry, ErrorType
 from extract.core.state_manager import State
 
@@ -120,7 +120,7 @@ class TestDownloadAndVerify:
                 body=requests.exceptions.ConnectionError("connection refused"),
                 status=500,
             )
-            with caplog.at_level(logging.ERROR, logger="extract.downloader.downloader_download"):
+            with caplog.at_level(logging.ERROR, logger="extract.downloader.download"):
                 download_and_verify(entry, data_dir, mock_state, mock_known_missing)
 
         assert any("Network error for" in record.message for record in caplog.records)
@@ -364,7 +364,7 @@ class TestDownloadIntegration:
         state = State(tmp_path / "state.json")
         known_missing = MagicMock()
 
-        with patch("extract.downloader.downloader_download._fetch_content", side_effect=ValueError("unexpected failure")):
+        with patch("extract.downloader.download._fetch_content", side_effect=ValueError("unexpected failure")):
             with patch.object(state, "log_error") as mock_log:
                 with pytest.raises(ValueError, match="unexpected failure"):
                     download_and_verify(entry, data_dir, state, known_missing)

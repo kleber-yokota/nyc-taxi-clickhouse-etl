@@ -8,13 +8,13 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from extract.downloader.downloader_ops import process_entry, should_skip_download
+from extract.downloader.ops import process_entry, should_skip_download
 from extract.core.state import CatalogEntry, ErrorType
-from extract.downloader.downloader_util import (
+from extract.downloader.utils import (
     backup_existing_file,
-    handle_http_error,
     handle_network_error,
 )
+from extract.downloader.download import _log_http_error
 from extract.core.state_manager import State
 
 
@@ -69,7 +69,7 @@ class TestHandleHttpErrorState:
         http_error = requests.HTTPError()
         http_error.response = MockResponse()
 
-        handle_http_error(
+        _log_http_error(
             http_error, "https://example.com/file.parquet", state, known_missing
         )
 
@@ -94,7 +94,7 @@ class TestHandleHttpErrorState:
         http_error = requests.HTTPError()
         http_error.response = MockResponse()
 
-        handle_http_error(
+        _log_http_error(
             http_error, "https://example.com/file.parquet", state, known_missing
         )
 

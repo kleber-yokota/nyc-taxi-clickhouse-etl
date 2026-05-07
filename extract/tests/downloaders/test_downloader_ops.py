@@ -8,7 +8,8 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from extract.downloader.downloader import _backup_existing_file, _handle_http_error, _handle_network_error
+from extract.downloader.utils import backup_existing_file as _backup_existing_file, handle_network_error as _handle_network_error
+from extract.downloader.download import _log_http_error
 
 
 class TestBackupExistingFile:
@@ -16,7 +17,7 @@ class TestBackupExistingFile:
         target = tmp_path / "test.parquet"
         target.write_bytes(b"content")
 
-        with caplog.at_level(logging.INFO, logger="extract.downloader.downloader_util"):
+        with caplog.at_level(logging.INFO, logger="extract.downloader.utils"):
             _backup_existing_file(target)
 
         assert any("Backed up old file" in record.message for record in caplog.records)
@@ -35,7 +36,7 @@ class TestHandleHttpErrorLogging:
         url = "https://example.com/missing.parquet"
 
         with caplog.at_level(logging.ERROR, logger="extract.downloader.downloader"):
-            _handle_http_error(error, url, state, known_missing)
+            _log_http_error(error, url, state, known_missing)
 
         assert any("File not found" in record.message for record in caplog.records)
         assert any("HTTP 404" in record.message for record in caplog.records)
@@ -52,7 +53,7 @@ class TestHandleHttpErrorLogging:
         url = "https://example.com/error.parquet"
 
         with caplog.at_level(logging.ERROR, logger="extract.downloader.downloader"):
-            _handle_http_error(error, url, state, known_missing)
+            _log_http_error(error, url, state, known_missing)
 
         assert any("HTTP error" in record.message for record in caplog.records)
         assert any("HTTP 500" in record.message for record in caplog.records)

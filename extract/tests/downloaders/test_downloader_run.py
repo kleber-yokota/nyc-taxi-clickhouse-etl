@@ -9,8 +9,8 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from extract.downloader.downloader import run
-from extract.downloader.downloader_actions import make_result as _make_result
-from extract.downloader.downloader_actions import log_download_complete as _log_download_complete
+from extract.downloader.actions import make_result as _make_result
+from extract.downloader.actions import log_download_complete as _log_download_complete
 
 
 class TestRunDefaultMode:

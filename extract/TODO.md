@@ -9,12 +9,12 @@
 - [ ] Add `__all__` declarations to all modules
 
 ### Refine
-- [ ] Remove 8 test compatibility aliases in `downloader.py:127-134`
-- [ ] Consolidate duplicate HTTP error handling (`_log_http_error` + `handle_http_error`)
-- [ ] Fill empty `__init__.py` files with public API exports
-- [ ] Replace `target_dir` with `data_type` in `is_pushed_in_manifest` calls
-- [ ] Remove extra blank lines in `ops.py:18-20`
-- [ ] Enforce 15/10/3 rules (function length, complexity, nesting)
+- [x] Remove 8 test compatibility aliases in `downloader.py:127-134`
+- [x] Consolidate duplicate HTTP error handling (`_log_http_error` + `handle_http_error`)
+- [x] Fill empty `__init__.py` files with public API exports
+- [x] Replace `target_dir` with `data_type` in `is_pushed_in_manifest` calls
+- [x] Remove extra blank lines in `ops.py:18-20`
+- [x] Enforce 15/10/3 rules (function length, complexity, nesting)
 
 ### Test
 - [ ] Merge `test_interrupt_signal.py` into `test_interrupt.py`
@@ -40,7 +40,7 @@
 Module `extract/` is an ETL extraction system for downloading NYC TLC trip data parquet files from AWS CloudFront CDN.
 
 **Statistics:**
-- 935 lines of source code across 14 files (2 packages: `core/`, `downloader/`)
+- 935 lines of source code across 14 files (2 packages: `core/`, `downloader/`) — files renamed: `downloader_actions.py`→`actions.py`, `downloader_download.py`→`download.py`, `downloader_ops.py`→`ops.py`, `downloader_util.py`→`utils.py`
 - ~4500 lines of tests across 49 files
 - 5 VCR cassettes for reproducible HTTP testing
 - External dependencies: `requests`, `hashlib`, `json`, `signal`, `logging`
@@ -58,10 +58,10 @@ extract/
 
   downloader/            <-- Orchestration (coordinates I/O)
     downloader.py                -- Main entry point (run())
-    downloader_actions.py        -- Helper actions
-    downloader_download.py       -- Download + checksum verification
-    downloader_ops.py            -- Entry processing, skip logic
-    downloader_util.py           -- File utilities (backup, unlink)
+    actions.py                   -- Helper actions
+    download.py                  -- Download + checksum verification
+    ops.py                       -- Entry processing, skip logic
+    utils.py                     -- File utilities (backup, unlink)
 ```
 
 **Main flow (`run()`):**
@@ -126,11 +126,11 @@ core/state_manager.py  --> core/state
 core/interrupt.py      --> core/state
 core/known_missing.py  --> core/state
 core/push_manifest.py  --> stdlib (json, logging)
-downloader/downloader_actions.py --> stdlib
-downloader/downloader_util.py    --> core/state, core/state_manager
-downloader/downloader_download.py --> downloader_util, core/known_missing, core/state, core/state_manager
-downloader/downloader_ops.py      --> core/*, downloader_download
-downloader/downloader.py          --> core/*, downloader_actions, downloader_download, downloader_ops, downloader_util
+downloader/actions.py        --> stdlib
+ downloader/utils.py          --> core/state, core/state_manager
+ downloader/download.py       --> utils, core/known_missing, core/state, core/state_manager
+ downloader/ops.py            --> core/*, download
+ downloader/downloader.py     --> core/*, actions, download, ops, utils
 ```
 
 ### Public API
@@ -147,20 +147,20 @@ downloader/downloader.py          --> core/*, downloader_actions, downloader_dow
 - `state_manager.py:82` — Uses `ErrorType` without importing from `.state` (causes NameError at runtime)
 
 **Moderate:**
-- `downloader.py:127-134` — 8 test compatibility aliases (dead code/workaround)
+- ~~`downloader.py:127-134` — 8 test compatibility aliases (dead code/workaround)~~ (RESOLVED: removed)
 - `downloader_actions.py:23` — `state: object` instead of `State`
 - `downloader_download.py:80` — `known_missing: object` instead of `KnownMissing`
 - `downloader_util.py:47` — `e: Exception` instead of `requests.HTTPError`
 - `downloader_download.py:79` — `entries: list` without type parameter
-- `downloader_download.py:107` + `downloader_util.py:47` — Duplicate HTTP error handling logic
+- ~~`downloader_download.py:107` + `downloader_util.py:47` — Duplicate HTTP error handling logic~~ (RESOLVED: consolidated into `_log_http_error`)
 - `interrupt.py:31-32` — `signal.signal` re-registered on every instantiation
 - `downloader.py:109-110` — `KeyboardInterrupt` handler conflicts with InterruptibleDownload
 - `downloader_download.py:70-73` — `except Exception` re-raises without context
-- `downloader_ops.py:18-20` — 3 extra blank lines
+- ~~`downloader_ops.py:18-20` — 3 extra blank lines~~ (RESOLVED: removed)
 - `test_interrupt_signal.py` — Duplicate of test in `test_interrupt.py`
 - `test_state.py` + `test_catalog_sha256.py` — Both test `compute_sha256`
 
 **Minor:**
-- All `__init__.py` files are empty (no public API exports)
+- ~~All `__init__.py` files are empty (no public API exports)~~ (RESOLVED: all have `__all__` and exports)
 - No `__all__` declarations in any module
-- `downloader_ops.py:50` — `target_dir` passed where `data_type` was expected
+- ~~`downloader_ops.py:50` — `target_dir` passed where `data_type` was expected~~ (RESOLVED: replaced with `data_type`)

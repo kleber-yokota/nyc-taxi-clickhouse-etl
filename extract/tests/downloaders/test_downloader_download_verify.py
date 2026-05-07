@@ -10,7 +10,7 @@ from unittest.mock import MagicMock
 import pytest
 import responses as responses_lib
 
-from extract.downloader.downloader_download import download_and_verify
+from extract.downloader.download import download_and_verify
 from extract.core.state import CatalogEntry
 from extract.core.state_manager import State
 
@@ -116,7 +116,7 @@ class TestDownloadAndVerify:
                 body=requests.exceptions.ConnectionError("connection refused"),
                 status=500,
             )
-            with caplog.at_level(logging.ERROR, logger="extract.downloader.downloader_download"):
+            with caplog.at_level(logging.ERROR, logger="extract.downloader.download"):
                 download_and_verify(entry, data_dir, mock_state, mock_known_missing)
 
         assert any("Network error for" in record.message for record in caplog.records)

@@ -7,7 +7,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from extract.downloader.downloader_ops import process_entry, should_skip_download
+from extract.downloader.ops import process_entry, should_skip_download
 from extract.core.state import CatalogEntry, ErrorType
 
 

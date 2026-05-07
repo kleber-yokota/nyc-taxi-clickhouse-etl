@@ -7,10 +7,10 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from extract.downloader.downloader import _safe_unlink
-from extract.downloader.downloader_actions import apply_mode as _apply_mode
-from extract.downloader.downloader_actions import make_result as _make_result
-from extract.downloader.downloader_actions import resolve_data_dir as _resolve_data_dir
+from extract.downloader.utils import safe_unlink as _safe_unlink
+from extract.downloader.actions import apply_mode as _apply_mode
+from extract.downloader.actions import make_result as _make_result
+from extract.downloader.actions import resolve_data_dir as _resolve_data_dir
 
 
 class TestResolveDataDir:

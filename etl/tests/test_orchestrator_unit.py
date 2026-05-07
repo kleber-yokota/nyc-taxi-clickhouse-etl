@@ -11,8 +11,11 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from etl.checkpoint import Checkpoint
+from etl.checkpoint_builder import CheckpointBuilder
 from etl.config import ETLConfig
+from etl.manifest_updater import ManifestUpdater
 from etl.orchestrator import Orchestrator
+from etl.retry import RetryPolicy
 from etl.state import PipelineState
 
 
@@ -30,30 +33,30 @@ def _make_extract_result(downloaded=5, skipped=0, failed=0, total=5):
 
 
 # ---------------------------------------------------------------------------
-# _execute_with_retry — 29 survivor mutants
+# RetryPolicy — execute
 # ---------------------------------------------------------------------------
 
 def test_execute_with_retry_succeeds_first_attempt():
-    """Verify _execute_with_retry returns immediately on success."""
-    orch = Orchestrator()
+    """Verify RetryPolicy.execute returns immediately on success."""
+    policy = RetryPolicy()
     call_count = 0
 
-    def op(_):
+    def op():
         nonlocal call_count
         call_count += 1
         return {"ok": True}
 
-    result = orch._execute_with_retry("test", op, Path("/tmp"))
+    result = policy.execute("test", op)
     assert call_count == 1
     assert result["ok"] is True
 
 
 def test_execute_with_retry_retries_on_failure():
-    """Verify _execute_with_retry retries 2 times before succeeding."""
-    orch = Orchestrator()
+    """Verify RetryPolicy.execute retries 2 times before succeeding."""
+    policy = RetryPolicy()
     call_count = 0
 
-    def op(_):
+    def op():
         nonlocal call_count
         call_count += 1
         if call_count < 3:
@@ -61,30 +64,30 @@ def test_execute_with_retry_retries_on_failure():
         return {"ok": True}
 
     with patch("time.sleep"):
-        result = orch._execute_with_retry("test", op, Path("/tmp"))
+        result = policy.execute("test", op)
 
     assert call_count == 3
     assert result["ok"] is True
 
 
 def test_execute_with_retry_raises_after_exhausting_retries():
-    """Verify _execute_with_retry raises after 3 failed attempts."""
-    orch = Orchestrator()
+    """Verify RetryPolicy.execute raises after 3 failed attempts."""
+    policy = RetryPolicy()
 
-    def op(_):
+    def op():
         raise RuntimeError("permanent failure")
 
     with patch("time.sleep"):
         with pytest.raises(RuntimeError, match="permanent failure"):
-            orch._execute_with_retry("test", op, Path("/tmp"))
+            policy.execute("test", op)
 
 
 def test_execute_with_retry_backoff_exponential():
     """Verify retry backoff uses 2**attempt: 1s, 2s, 4s."""
-    orch = Orchestrator()
+    policy = RetryPolicy()
     sleeps = []
 
-    def op(_):
+    def op():
         raise ValueError("fail")
 
     def record_sleep(sec):
@@ -92,7 +95,7 @@ def test_execute_with_retry_backoff_exponential():
 
     with patch("time.sleep", side_effect=record_sleep):
         with pytest.raises(ValueError, match="fail"):
-            orch._execute_with_retry("test", op, Path("/tmp"))
+            policy.execute("test", op)
 
     assert len(sleeps) == 2
     assert sleeps[0] == 1  # 2**0
@@ -101,22 +104,22 @@ def test_execute_with_retry_backoff_exponential():
 
 def test_execute_with_retry_log_retry_called():
     """Verify _log_retry is called on each retry attempt."""
-    orch = Orchestrator()
+    policy = RetryPolicy()
     logged = []
 
-    def op(_):
+    def op():
         raise ValueError("fail")
 
     with patch("time.sleep"), \
-         patch.object(orch, "_log_retry", side_effect=lambda *a: logged.append(True)):
+         patch.object(policy, "_log_retry", side_effect=lambda *a: logged.append(True)):
         with pytest.raises(ValueError, match="fail"):
-            orch._execute_with_retry("test", op, Path("/tmp"))
+            policy.execute("test", op)
 
     assert len(logged) == 2  # 2 retries (attempts 0, 1)
 
 
 # ---------------------------------------------------------------------------
-# _mark_extract_done — 38 survivor mutants
+# _mark_extract_done
 # ---------------------------------------------------------------------------
 
 def test_mark_extract_done_passes_all_result_fields():
@@ -153,7 +156,7 @@ def test_mark_extract_done_handles_missing_keys():
 
 
 # ---------------------------------------------------------------------------
-# _mark_upload_done — 22 survivor mutants
+# _mark_upload_done
 # ---------------------------------------------------------------------------
 
 def test_mark_upload_done_passes_all_result_fields():
@@ -187,19 +190,20 @@ def test_mark_upload_done_handles_none_files():
 
 
 # ---------------------------------------------------------------------------
-# _execute_extract — 25 survivor mutants (time operations)
+# _execute_extract
 # ---------------------------------------------------------------------------
 
 def test_execute_extract_calls_do_extract_and_marks_done():
     """Verify _execute_extract calls _do_extract and updates state."""
     orch = Orchestrator()
+    orch.data_dir = Path("/tmp")
     state = PipelineState()
     state.start()
 
     with patch.object(orch, "_do_extract", return_value=_make_extract_result(
         downloaded=7, skipped=1, failed=0, total=8
     )) as mock_do:
-        orch._execute_extract(Path("/tmp"), state)
+        orch._execute_extract(state)
 
     mock_do.assert_called_once()
     assert state.stage == "extract_done"
@@ -208,12 +212,13 @@ def test_execute_extract_calls_do_extract_and_marks_done():
 
 
 # ---------------------------------------------------------------------------
-# _execute_upload — 19 survivor mutants (time operations)
+# _execute_upload
 # ---------------------------------------------------------------------------
 
 def test_execute_upload_calls_do_upload_and_marks_done():
     """Verify _execute_upload calls _do_upload and updates state."""
     orch = Orchestrator()
+    orch.data_dir = Path("/tmp")
     state = PipelineState()
     state.start()
     state.mark_extract_done(downloaded=5, total=5, duration=1.0)
@@ -221,7 +226,7 @@ def test_execute_upload_calls_do_upload_and_marks_done():
     with patch.object(orch, "_do_upload", return_value=_make_upload_result(
         uploaded=3, uploaded_files=["x.parquet"]
     )) as mock_do:
-        orch._execute_upload(Path("/tmp"), state)
+        orch._execute_upload(state)
 
     mock_do.assert_called_once()
     assert state.stage == "upload_done"
@@ -230,16 +235,17 @@ def test_execute_upload_calls_do_upload_and_marks_done():
 
 
 # ---------------------------------------------------------------------------
-# _do_extract — 17 survivor mutants
+# _do_extract
 # ---------------------------------------------------------------------------
 
 def test_do_extract_calls_extract_run_with_params():
     """Verify _do_extract passes config params to extract.run."""
     config = ETLConfig(types={"yellow"}, from_year=2020, to_year=2023, mode="full")
     orch = Orchestrator(config)
+    orch.data_dir = Path("/tmp")
 
     with patch("extract.downloader.downloader.run", return_value={}) as mock_run:
-        orch._do_extract(Path("/tmp"))
+        orch._do_extract()
 
     mock_run.assert_called_once()
     kwargs = mock_run.call_args[1]
@@ -254,9 +260,10 @@ def test_do_extract_calls_extract_run_with_params():
 def test_do_extract_passes_none_when_types_empty():
     """Verify _do_extract passes None when config.types is None."""
     orch = Orchestrator(ETLConfig(types=None))
+    orch.data_dir = Path("/tmp")
 
     with patch("extract.downloader.downloader.run", return_value={}) as mock_run:
-        orch._do_extract(Path("/tmp"))
+        orch._do_extract()
 
     kwargs = mock_run.call_args[1]
     assert kwargs["types"] is None
@@ -265,25 +272,27 @@ def test_do_extract_passes_none_when_types_empty():
 def test_do_extract_passes_push_manifest():
     """Verify _do_extract passes current manifest to extract.run."""
     orch = Orchestrator()
+    orch.data_dir = Path("/tmp")
 
     with patch("extract.downloader.downloader.run", return_value={}) as mock_run, \
-         patch("etl.orchestrator.load_manifest", return_value={"existing": "entry"}):
-        orch._do_extract(Path("/tmp"))
+         patch.object(orch, "_load_manifest", return_value={"existing": "entry"}):
+        orch._do_extract()
 
     kwargs = mock_run.call_args[1]
     assert kwargs["push_manifest"] == {"existing": "entry"}
 
 
 # ---------------------------------------------------------------------------
-# _do_upload — 15 survivor mutants
+# _do_upload
 # ---------------------------------------------------------------------------
 
 def test_do_upload_calls_upload_from_env_with_config():
     """Verify _do_upload passes config to upload_from_env."""
     orch = Orchestrator(ETLConfig(mode="full", delete_after_upload=True))
+    orch.data_dir = Path("/tmp")
 
     with patch("upload.core.runner.upload_from_env", return_value=MagicMock()) as mock_run:
-        orch._do_upload(Path("/tmp"))
+        orch._do_upload()
 
     mock_run.assert_called_once()
     kwargs = mock_run.call_args[1]
@@ -295,26 +304,26 @@ def test_do_upload_calls_upload_from_env_with_config():
 def test_do_upload_incremental_no_overwrite():
     """Verify _do_upload sets overwrite=False for incremental mode."""
     orch = Orchestrator(ETLConfig(mode="incremental"))
+    orch.data_dir = Path("/tmp")
 
     with patch("upload.core.runner.upload_from_env", return_value=MagicMock()) as mock_run:
-        orch._do_upload(Path("/tmp"))
+        orch._do_upload()
 
     kwargs = mock_run.call_args[1]
     assert kwargs["config"].overwrite is False
 
 
 # ---------------------------------------------------------------------------
-# _log_retry — 19 survivor mutants
+# RetryPolicy — _log_retry
 # ---------------------------------------------------------------------------
 
 def test_log_retry_format_contains_backoff():
     """Verify _log_retry calls logger.warning with correct args."""
-    orch = Orchestrator()
+    policy = RetryPolicy()
     captured = []
 
-    with patch.object(orch, "config"):
-        with patch("logging.Logger.warning", side_effect=lambda *a: captured.append(a)):
-            orch._log_retry("extract", 0, 3, ValueError("test"))
+    with patch("logging.Logger.warning", side_effect=lambda *a: captured.append(a)):
+        policy._log_retry("extract", 0, ValueError("test"))
 
     assert len(captured) == 1
     args = captured[0]
@@ -328,12 +337,11 @@ def test_log_retry_format_contains_backoff():
 
 def test_log_retry_attempt_number_increases():
     """Verify _log_retry shows correct attempt number (attempt + 1)."""
-    orch = Orchestrator()
+    policy = RetryPolicy()
     captured = []
 
-    with patch.object(orch, "config"):
-        with patch("logging.Logger.warning", side_effect=lambda *a: captured.append(a)):
-            orch._log_retry("upload", 2, 3, ValueError("test"))
+    with patch("logging.Logger.warning", side_effect=lambda *a: captured.append(a)):
+        policy._log_retry("upload", 2, ValueError("test"))
 
     args = captured[0]
     assert args[1] == "upload"
@@ -343,44 +351,22 @@ def test_log_retry_attempt_number_increases():
 
 
 # ---------------------------------------------------------------------------
-# _add_manifest_entry — 6 survivor mutants
-# ---------------------------------------------------------------------------
-
-def test_add_manifest_entry_creates_correct_entry():
-    """Verify _add_manifest_entry creates entry with s3_key and checksum."""
-    orch = Orchestrator()
-    manifest = {}
-
-    import tempfile
-    with tempfile.NamedTemporaryFile(suffix=".parquet") as f:
-        f.write(b"test data for checksum")
-        f.flush()
-        orch.checksum = MagicMock()
-        orch.checksum.compute_sha256.return_value = "abc123"
-
-        orch._add_manifest_entry(Path("/tmp"), manifest, "yellow/trip.parquet")
-
-    assert "yellow/trip.parquet" in manifest
-    assert manifest["yellow/trip.parquet"]["s3_key"] == "data/yellow/trip.parquet"
-    assert manifest["yellow/trip.parquet"]["checksum"] == "abc123"
-
-
-# ---------------------------------------------------------------------------
-# _build_success_checkpoint — 11 survivor mutants
+# CheckpointBuilder
 # ---------------------------------------------------------------------------
 
 def test_build_success_checkpoint_contains_all_fields():
-    """Verify _build_success_checkpoint has status, extract, upload, total_duration."""
-    orch = Orchestrator()
+    """Verify CheckpointBuilder.build_success has status, extract, upload, total_duration."""
+    builder = CheckpointBuilder()
     state = PipelineState()
     state.start()
     state.mark_extract_done(downloaded=10, skipped=2, failed=1, total=13, duration=5.0)
 
     upload_result = _make_upload_result(uploaded=8, uploaded_files=["a.parquet"])
+    orch = Orchestrator()
     orch._mark_upload_done(state, upload_result, duration=3.0)
     state.complete()
 
-    checkpoint = orch._build_success_checkpoint(state)
+    checkpoint = builder.build_success(state)
 
     assert isinstance(checkpoint, Checkpoint)
     assert checkpoint.status == "completed"
@@ -395,13 +381,25 @@ def test_build_success_checkpoint_contains_all_fields():
     assert checkpoint.error is None
 
 
-# ---------------------------------------------------------------------------
-# _extract_metrics_dict — 10 survivor mutants
-# ---------------------------------------------------------------------------
+def test_build_failure_checkpoint_contains_error():
+    """Verify CheckpointBuilder.build_failure includes error message."""
+    builder = CheckpointBuilder()
+    state = PipelineState()
+    state.start()
+    state.fail("something broke")
+
+    checkpoint = builder.build_failure(state)
+
+    assert checkpoint.status == "failed"
+    assert checkpoint.error == "something broke"
+    assert checkpoint.total_duration_seconds > 0
+    assert checkpoint.extract == {}
+    assert checkpoint.upload == {}
+
 
 def test_extract_metrics_dict_contains_all_fields():
     """Verify _extract_metrics_dict returns dict with all extract fields."""
-    orch = Orchestrator()
+    builder = CheckpointBuilder()
     metrics = MagicMock()
     metrics.duration_seconds = 45.2
     metrics.downloaded = 120
@@ -409,7 +407,7 @@ def test_extract_metrics_dict_contains_all_fields():
     metrics.failed = 2
     metrics.total = 152
 
-    result = orch._extract_metrics_dict(metrics)
+    result = builder._extract_metrics_dict(metrics)
 
     assert result == {
         "duration_seconds": 45.2,
@@ -420,19 +418,15 @@ def test_extract_metrics_dict_contains_all_fields():
     }
 
 
-# ---------------------------------------------------------------------------
-# _upload_metrics_dict — 6 survivor mutants
-# ---------------------------------------------------------------------------
-
 def test_upload_metrics_dict_contains_all_fields():
     """Verify _upload_metrics_dict returns dict with all upload fields."""
-    orch = Orchestrator()
+    builder = CheckpointBuilder()
     metrics = MagicMock()
     metrics.duration_seconds = 30.5
     metrics.uploaded = 118
     metrics.uploaded_files = ["yellow/a.parquet", "green/b.parquet"]
 
-    result = orch._upload_metrics_dict(metrics)
+    result = builder._upload_metrics_dict(metrics)
 
     assert result == {
         "duration_seconds": 30.5,
@@ -442,7 +436,64 @@ def test_upload_metrics_dict_contains_all_fields():
 
 
 # ---------------------------------------------------------------------------
-# _handle_failure — 8 survivor mutants
+# ManifestUpdater
+# ---------------------------------------------------------------------------
+
+def test_update_manifest_loads_and_saves():
+    """Verify ManifestUpdater.update loads existing manifest and saves updated."""
+    orch = Orchestrator()
+    orch.data_dir = Path("/tmp")
+    orch._manifest_updater = ManifestUpdater(orch.data_dir, orch.checksum)
+    state = PipelineState()
+    state.start()
+    state.mark_extract_done(downloaded=5, total=5, duration=1.0)
+    state.mark_upload_done(uploaded=2, uploaded_files=["a.parquet", "b.parquet"], duration=1.0)
+
+    existing_manifest = {"old_file.parquet": {"s3_key": "data/old.parquet", "checksum": "old"}}
+
+    with patch.object(orch.checksum, "compute", return_value="new123"):
+        result = orch._manifest_updater.update(["a.parquet", "b.parquet"], existing_manifest)
+
+    assert "old_file.parquet" in result
+    assert "a.parquet" in result
+    assert "b.parquet" in result
+    assert result["a.parquet"]["s3_key"] == "data/a.parquet"
+
+
+def test_add_manifest_entry_creates_correct_entry():
+    """Verify ManifestUpdater adds entry with s3_key and checksum."""
+    orch = Orchestrator()
+    orch.data_dir = Path("/tmp")
+    mock_checksum = MagicMock()
+    mock_checksum.compute.return_value = "abc123"
+    orch._manifest_updater = ManifestUpdater(orch.data_dir, mock_checksum)
+    manifest = {}
+
+    orch._manifest_updater._add_entry(manifest, "yellow/trip.parquet")
+
+    assert "yellow/trip.parquet" in manifest
+    assert manifest["yellow/trip.parquet"]["s3_key"] == "data/yellow/trip.parquet"
+    assert manifest["yellow/trip.parquet"]["checksum"] == "abc123"
+
+
+def test_add_manifest_entry_uses_data_prefix():
+    """Verify ManifestUpdater uses 'data/' prefix in s3_key."""
+    orch = Orchestrator()
+    orch.data_dir = Path("/tmp")
+    mock_checksum = MagicMock()
+    mock_checksum.compute.return_value = "def456"
+    orch._manifest_updater = ManifestUpdater(orch.data_dir, mock_checksum)
+    manifest = {}
+
+    orch._manifest_updater._add_entry(manifest, "green/trip.parquet")
+
+    entry = manifest["green/trip.parquet"]
+    assert entry["s3_key"] == "data/green/trip.parquet"
+    assert entry["checksum"] == "def456"
+
+
+# ---------------------------------------------------------------------------
+# Orchestrator — _handle_failure
 # ---------------------------------------------------------------------------
 
 def test_handle_failure_calls_state_fail_and_saves_checkpoint():
@@ -450,6 +501,8 @@ def test_handle_failure_calls_state_fail_and_saves_checkpoint():
     orch = Orchestrator()
     state = PipelineState()
     state.start()
+    orch.data_dir = Path("/tmp")
+    orch.state = state
     captured_checkpoint = None
 
     with patch("etl.orchestrator.save_checkpoint") as mock_save:
@@ -458,7 +511,7 @@ def test_handle_failure_calls_state_fail_and_saves_checkpoint():
             captured_checkpoint = cp
         mock_save.side_effect = capture_save
 
-        orch._handle_failure(Path("/tmp"), state, ValueError("test error"))
+        orch._handle_failure(ValueError("test error"))
 
     assert state.stage == "failed"
     assert state.error == "test error"
@@ -468,55 +521,7 @@ def test_handle_failure_calls_state_fail_and_saves_checkpoint():
 
 
 # ---------------------------------------------------------------------------
-# _build_failure_checkpoint — 6 survivor mutants
-# ---------------------------------------------------------------------------
-
-def test_build_failure_checkpoint_contains_error():
-    """Verify _build_failure_checkpoint includes error message."""
-    orch = Orchestrator()
-    state = PipelineState()
-    state.start()
-    state.fail("something broke")
-
-    checkpoint = orch._build_failure_checkpoint(state)
-
-    assert checkpoint.status == "failed"
-    assert checkpoint.error == "something broke"
-    assert checkpoint.total_duration_seconds > 0
-    assert checkpoint.extract == {}
-    assert checkpoint.upload == {}
-
-
-# ---------------------------------------------------------------------------
-# _update_manifest — 13 survivor mutants
-# ---------------------------------------------------------------------------
-
-def test_update_manifest_loads_and_saves():
-    """Verify _update_manifest loads existing manifest and saves updated."""
-    orch = Orchestrator()
-    state = PipelineState()
-    state.start()
-    state.mark_extract_done(downloaded=5, total=5, duration=1.0)
-    state.mark_upload_done(uploaded=2, uploaded_files=["a.parquet", "b.parquet"], duration=1.0)
-
-    existing_manifest = {"old_file.parquet": {"s3_key": "data/old.parquet", "checksum": "old"}}
-
-    with patch("etl.orchestrator.load_manifest", return_value=existing_manifest) as mock_load, \
-         patch("etl.orchestrator.save_manifest") as mock_save, \
-         patch.object(orch.checksum, "compute_sha256", return_value="new123"):
-        orch._update_manifest(Path("/tmp"), state)
-
-    mock_load.assert_called_once()
-    mock_save.assert_called_once()
-    saved_manifest = mock_save.call_args[0][1]
-    assert "old_file.parquet" in saved_manifest
-    assert "a.parquet" in saved_manifest
-    assert "b.parquet" in saved_manifest
-    assert saved_manifest["a.parquet"]["s3_key"] == "data/a.parquet"
-
-
-# ---------------------------------------------------------------------------
-# _persist_checkpoint — 6 survivor mutants
+# Orchestrator — _persist_checkpoint
 # ---------------------------------------------------------------------------
 
 def test_persist_checkpoint_calls_build_and_save():
@@ -527,18 +532,19 @@ def test_persist_checkpoint_calls_build_and_save():
     state.mark_extract_done(downloaded=5, total=5, duration=1.0)
     state.mark_upload_done(uploaded=3, uploaded_files=["x.parquet"], duration=1.0)
     state.complete()
+    orch.data_dir = Path("/tmp")
 
-    with patch.object(orch, "_build_success_checkpoint") as mock_build, \
+    with patch.object(orch._checkpoint_builder, "build_success") as mock_build, \
          patch("etl.orchestrator.save_checkpoint") as mock_save:
         mock_build.return_value = Checkpoint(status="completed")
-        orch._persist_checkpoint(Path("/tmp"), state)
+        orch._persist_checkpoint(state)
 
     mock_build.assert_called_once()
     mock_save.assert_called_once()
 
 
 # ---------------------------------------------------------------------------
-# run — 13 survivor mutants
+# Orchestrator — run
 # ---------------------------------------------------------------------------
 
 def test_run_calls_load_dotenv():
@@ -584,7 +590,7 @@ def test_run_returns_state_result():
 
 
 # ---------------------------------------------------------------------------
-# _init_data_dir — 6 survivor mutants
+# Orchestrator — _init_data_dir
 # ---------------------------------------------------------------------------
 
 def test_init_data_dir_creates_path():
@@ -598,7 +604,7 @@ def test_init_data_dir_creates_path():
 
 
 # ---------------------------------------------------------------------------
-# _init_state — 2 survivor mutants
+# Orchestrator — _init_state
 # ---------------------------------------------------------------------------
 
 def test_init_state_creates_and_starts():
@@ -613,37 +619,39 @@ def test_init_state_creates_and_starts():
 
 
 # ---------------------------------------------------------------------------
-# _run_success_path — 16 survivor mutants
+# Orchestrator — _run_success_path
 # ---------------------------------------------------------------------------
 
 def test_run_success_path_calls_all_stages_in_order():
     """Verify _run_success_path calls extract, upload, manifest, complete, checkpoint."""
     orch = Orchestrator()
-    state = PipelineState()
-    state.start()
+    orch.data_dir = Path("/tmp")
+    orch.state = PipelineState()
+    orch.state.start()
     call_order = []
 
     with patch.object(orch, "_execute_extract", side_effect=lambda *a: call_order.append("extract")), \
          patch.object(orch, "_execute_upload", side_effect=lambda *a: call_order.append("upload")), \
          patch.object(orch, "_update_manifest", side_effect=lambda *a: call_order.append("manifest")), \
          patch.object(orch, "_persist_checkpoint", side_effect=lambda *a: call_order.append("checkpoint")):
-        orch._run_success_path(Path("/tmp"), state)
+        orch._run_success_path()
 
     assert call_order == ["extract", "upload", "manifest", "checkpoint"]
-    assert state.stage == "completed"
+    assert orch.state.stage == "completed"
 
 
 def test_run_success_path_returns_result():
     """Verify _run_success_path returns state.result()."""
     orch = Orchestrator()
-    state = PipelineState()
-    state.start()
+    orch.data_dir = Path("/tmp")
+    orch.state = PipelineState()
+    orch.state.start()
 
     with patch.object(orch, "_execute_extract"), \
          patch.object(orch, "_execute_upload"), \
          patch.object(orch, "_update_manifest"), \
          patch.object(orch, "_persist_checkpoint"):
-        result = orch._run_success_path(Path("/tmp"), state)
+        result = orch._run_success_path()
 
     assert isinstance(result, dict)
     assert result["status"] == "completed"
@@ -652,6 +660,7 @@ def test_run_success_path_returns_result():
 def test_execute_extract_duration_is_positive_with_mocked_time():
     """Verify _execute_extract duration > 0 when time.monotonic is mocked."""
     orch = Orchestrator()
+    orch.data_dir = Path("/tmp")
     state = PipelineState()
     state.start()
 
@@ -667,7 +676,7 @@ def test_execute_extract_duration_is_positive_with_mocked_time():
         downloaded=7, skipped=1, failed=0, total=8
     )), \
          patch("time.monotonic", side_effect=mock_monotonic):
-        orch._execute_extract(Path("/tmp"), state)
+        orch._execute_extract(state)
 
     assert state._metrics.extract.duration_seconds == 5.5
 
@@ -675,9 +684,12 @@ def test_execute_extract_duration_is_positive_with_mocked_time():
 def test_execute_upload_duration_is_positive_with_mocked_time():
     """Verify _execute_upload duration > 0 when time.monotonic is mocked."""
     orch = Orchestrator()
+    orch.data_dir = Path("/tmp")
     state = PipelineState()
 
-    # Sequence: state.start() → _execute_upload(2x) → mark_upload_done(1x)
+    # state.start() calls time.monotonic(), state.mark_extract_done doesn't
+    # _execute_upload calls time.monotonic() twice (start + end)
+    # mark_upload_done calls time.monotonic() once for total_duration
     call_times = [100.0, 200.0, 203.0, 205.0]
     call_idx = [0]
 
@@ -692,36 +704,48 @@ def test_execute_upload_duration_is_positive_with_mocked_time():
          patch("time.monotonic", side_effect=mock_monotonic):
         state.start()
         state.mark_extract_done(downloaded=5, total=5, duration=1.0)
-        orch._execute_upload(Path("/tmp"), state)
+        orch._execute_upload(state)
 
     assert state._metrics.upload.duration_seconds == 3.0
 
 
 def test_execute_with_retry_raises_runtime_error_on_no_exception():
-    """Verify _execute_with_retry raises RuntimeError if operation never raises."""
-    orch = Orchestrator()
+    """Verify RetryPolicy raises RuntimeError if operation never raises."""
+    policy = RetryPolicy()
 
     # This test verifies the edge case: if operation returns without raising,
-    # the function returns early (line 138). The RuntimeError on line 146
+    # the function returns early. The RuntimeError on the last line
     # is only hit if the for loop completes without returning.
     # Since we always return on success, this verifies the return path.
-    def op(_):
+    def op():
         return {"result": "ok"}
 
-    result = orch._execute_with_retry("test", op, Path("/tmp"))
+    result = policy.execute("test", op)
     assert result == {"result": "ok"}
 
 
-def test_add_manifest_entry_uses_data_prefix():
-    """Verify _add_manifest_entry uses 'data/' prefix in s3_key."""
-    orch = Orchestrator()
-    manifest = {}
+# ---------------------------------------------------------------------------
+# Orchestrator — init
+# ---------------------------------------------------------------------------
 
-    orch.checksum = MagicMock()
-    orch.checksum.compute_sha256.return_value = "def456"
+def test_init_creates_checksum_provider():
+    """Verify orchestrator creates a checksum provider on init."""
+    orchestrator = Orchestrator()
+    assert orchestrator.checksum is not None
 
-    orch._add_manifest_entry(Path("/tmp"), manifest, "green/trip.parquet")
 
-    entry = manifest["green/trip.parquet"]
-    assert entry["s3_key"] == "data/green/trip.parquet"
-    assert entry["checksum"] == "def456"
+def test_init_with_none_config():
+    """Verify orchestrator uses default ETLConfig when config is None."""
+    orchestrator = Orchestrator(config=None)
+    assert orchestrator.config is not None
+    assert orchestrator.config.mode == "incremental"
+
+
+def test_init_with_custom_config():
+    """Verify orchestrator stores custom config as-is."""
+    config = ETLConfig(mode="full", from_year=2020, to_year=2023, delete_after_upload=True)
+    orchestrator = Orchestrator(config)
+    assert orchestrator.config.mode == "full"
+    assert orchestrator.config.from_year == 2020
+    assert orchestrator.config.to_year == 2023
+    assert orchestrator.config.delete_after_upload is True

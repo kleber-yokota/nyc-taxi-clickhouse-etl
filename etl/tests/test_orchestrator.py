@@ -473,8 +473,8 @@ def test_run_updates_manifest_with_checksums(tmp_data_dir: Path):
          )), \
          patch("etl.orchestrator.load_dotenv"), \
          patch("etl.orchestrator.Path") as mock_path, \
-         patch("etl.orchestrator.save_manifest") as mock_save_manifest, \
-         patch.object(orchestrator.checksum, "compute_sha256", return_value="abc123"):
+         patch("etl.manifest_updater.save_manifest") as mock_save_manifest, \
+         patch.object(orchestrator.checksum, "compute", return_value="abc123"):
         _setup_path_mock(mock_path, tmp_data_dir)
         orchestrator.run()
 

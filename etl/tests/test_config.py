@@ -1,13 +1,15 @@
 """Tests for etl.config."""
 
+import datetime
+
 from etl.config import ETLConfig
 
 
 def test_default_values():
     config = ETLConfig()
     assert config.types is None
-    assert config.from_year is None
-    assert config.to_year is None
+    assert config.from_year == 2009
+    assert config.to_year == datetime.datetime.now().year
     assert config.mode == "incremental"
     assert config.delete_after_upload is False
 

@@ -153,6 +153,7 @@ class S3Client:
         key: str,
         fileobj: BinaryIO,
         part_size: int | None = None,
+        checksum: str | None = None,
     ) -> None:
         """Upload a file object using multipart upload if needed.
 
@@ -160,6 +161,7 @@ class S3Client:
             key: S3 object key.
             fileobj: File-like object to upload.
             part_size: Part size for multipart upload.
+            checksum: SHA-256 hex digest to store as S3 metadata.
 
         Raises:
             S3ClientError: On S3 API errors.
@@ -168,7 +170,7 @@ class S3Client:
             self.part_size,
             part_size or self.part_size
         )
-        _upload_fileobj(self._client, self.bucket, key, fileobj, cfg)
+        _upload_fileobj(self._client, self.bucket, key, fileobj, cfg, checksum)
 
     def head_object(self, key: str) -> dict | None:
         """Check if an object exists in S3.

@@ -13,7 +13,7 @@ import pytest
 
 from upload.core.checksum import compute_content_type, compute_sha256
 from upload.core.filter import _matches_any, _matches_pattern
-from upload.core.state import UploadResult, UploadConfig
+from upload.core.state import UploadResult, UploadConfig, UploadEntry
 
 
 # ── Strategies ──────────────────────────────────────────────────────────
@@ -36,6 +36,20 @@ def glob_pattern_strategies() -> st.SearchStrategy[str]:
         max_size=50,
         alphabet=st.sampled_from(alphabet),
     )
+
+
+def s3_key_strategy() -> st.SearchStrategy[str]:
+    """Generate valid S3 key strings."""
+    return st.text(
+        min_size=1,
+        max_size=200,
+        alphabet=st.characters(whitelist_categories=["L", "N", "Zs", "Pd"], whitelist_characters="._-/\\", blacklist_characters=("\x00", "\n", "\r")),
+    )
+
+
+def checksum_strategy() -> st.SearchStrategy[str]:
+    """Generate valid SHA-256 hex digests."""
+    return st.text(min_size=64, max_size=64, alphabet="0123456789abcdef")
 
 
 @composite
@@ -68,6 +82,16 @@ def upload_config_params(draw: Any) -> dict:
         "include": include_patterns if include_patterns else None,
         "exclude": exclude_patterns if exclude_patterns else None,
         "overwrite": draw(st.booleans()),
+    }
+
+
+@composite
+def upload_entry_params(draw: Any) -> dict:
+    """Generate valid UploadEntry constructor parameters."""
+    return {
+        "rel_path": draw(safe_path_strategies()),
+        "s3_key": draw(safe_path_strategies()),
+        "checksum": draw(st.text(min_size=64, max_size=64, alphabet="0123456789abcdef")),
     }
 
 
@@ -308,3 +332,65 @@ class TestComputeContentTypeProperties:
         """Parquet detection is case-insensitive."""
         fake_path = type("FakePath", (), {"suffix": suffix.lower()})()
         assert compute_content_type(fake_path) == "application/x-parquet"
+
+
+# ── UploadEntry properties ─────────────────────────────────────────────
+
+
+class TestUploadEntryProperties:
+    """Property-based tests for UploadEntry."""
+
+    @given(params=upload_entry_params())
+    @settings(max_examples=30, deadline=2000)
+    def test_entry_fields_preserved(self, params: dict) -> None:
+        """UploadEntry preserves all constructor values."""
+        entry = UploadEntry(**params)
+        assert entry.rel_path == params["rel_path"]
+        assert entry.s3_key == params["s3_key"]
+        assert entry.checksum == params["checksum"]
+
+    @given(params=upload_entry_params())
+    @settings(max_examples=30, deadline=2000)
+    def test_entry_frozen(self, params: dict) -> None:
+        """UploadEntry is immutable — mutation raises FrozenInstanceError."""
+        from dataclasses import FrozenInstanceError
+        entry = UploadEntry(**params)
+        with pytest.raises(FrozenInstanceError):
+            entry.rel_path = "x"  # type: ignore[assignment]
+        with pytest.raises(FrozenInstanceError):
+            entry.s3_key = "x"  # type: ignore[assignment]
+        with pytest.raises(FrozenInstanceError):
+            entry.checksum = "x"  # type: ignore[assignment]
+
+    @given(params=upload_entry_params())
+    @settings(max_examples=30, deadline=2000)
+    def test_entry_equality(self, params: dict) -> None:
+        """Two UploadEntries with same fields are equal."""
+        entry1 = UploadEntry(**params)
+        entry2 = UploadEntry(**params)
+        assert entry1 == entry2
+
+    @given(params_a=upload_entry_params(), params_b=upload_entry_params())
+    @settings(max_examples=30, deadline=2000)
+    def test_entry_inequality_on_different_fields(self, params_a: dict, params_b: dict) -> None:
+        """Two UploadEntries with different fields are not equal."""
+        if params_a != params_b:
+            entry1 = UploadEntry(**params_a)
+            entry2 = UploadEntry(**params_b)
+            assert entry1 != entry2
+
+    @given(rel_path=safe_path_strategies(), s3_key=s3_key_strategy(), checksum=checksum_strategy())
+    @settings(max_examples=30, deadline=2000)
+    def test_s3_key_contains_rel_path(self, rel_path: str, s3_key: str, checksum: str) -> None:
+        """S3 key typically contains the rel_path."""
+        entry = UploadEntry(rel_path=rel_path, s3_key=s3_key, checksum=checksum)
+        assert entry.s3_key is not None
+        assert len(entry.s3_key) > 0
+
+    @given(rel_path=safe_path_strategies(), s3_key=s3_key_strategy(), checksum=checksum_strategy())
+    @settings(max_examples=30, deadline=2000)
+    def test_checksum_format(self, rel_path: str, s3_key: str, checksum: str) -> None:
+        """Checksum is always 64 hex characters."""
+        entry = UploadEntry(rel_path=rel_path, s3_key=s3_key, checksum=checksum)
+        assert len(entry.checksum) == 64
+        assert all(c in "0123456789abcdef" for c in entry.checksum)

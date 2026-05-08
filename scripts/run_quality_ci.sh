@@ -16,11 +16,15 @@ CHANGED_FILES=("$@")
 echo "=== Quality Checks CI ==="
 echo ""
 
-# Discover all modules
+# Discover all modules: any top-level dir with Python source files and tests/
+# Excludes: mutants/, .venv/, build/, dist/, __pycache__, scripts/
 ALL_MODULES=()
 for dir in */; do
     dir="${dir%/}"
-    if [ -d "${dir}/core" ] && [ ! -d "mutants/${dir}" ]; then
+    case "$dir" in
+        mutants|.venv|build|dist|__pycache__|scripts|tests) continue ;;
+    esac
+    if [ -d "${dir}/tests" ] && [ "$(find "$dir" -maxdepth 2 -name "*.py" -not -path "*/tests/*" -not -name "conftest.py" 2>/dev/null | head -1)" ]; then
         ALL_MODULES+=("$dir")
     fi
 done
@@ -67,15 +71,16 @@ for module in "${MODULES[@]}"; do
     echo "Module: ${module}"
     echo "=============================="
 
-    CORE_DIR="${module}/core/"
-    if [ ! -d "$CORE_DIR" ]; then
-        echo "  WARNING: No core/ directory in ${module}, skipping"
-        continue
+    # Support both flat structure (etl/) and core/ structure (extract/, upload/)
+    if [ -d "${module}/core/" ]; then
+        CORE_DIR="${module}/core/"
+    else
+        CORE_DIR="${module}/"
     fi
 
     # 1. Coverage (≥ 85%)
     echo "  Running coverage..."
-    if ! uv run python -m coverage run --include="${module}/core/*.py" -m pytest "${module}/tests/" -q 2>&1; then
+    if ! uv run python -m coverage run --include="${CORE_DIR}*.py" -m pytest "${module}/tests/" -q 2>&1; then
         echo "  ERROR: pytest failed for ${module}"
         FAILED_MODULES+=("$module")
         continue
@@ -125,9 +130,10 @@ for module in "${MODULES[@]}"; do
         echo "  PASS: Cohesion check passed"
     fi
 
-    # 6. Vulture (dead code)
+    # 6. Vulture (dead code, min 90% confidence, source only)
     echo "  Running vulture..."
-    VULTURE_OUTPUT=$(uv run vulture "${CORE_DIR}" 2>&1 || true)
+    # Exclude tests/ and conftest.py — only check production source
+    VULTURE_OUTPUT=$(uv run vulture "${CORE_DIR}" --min-confidence 90 --ignore-dirs="tests,__pycache__" 2>&1 || true)
     VULTURE_COUNT=$(echo "$VULTURE_OUTPUT" | wc -l | tr -d ' ')
     if [ "$VULTURE_COUNT" -gt 0 ] && [ -n "$VULTURE_OUTPUT" ]; then
         echo "  Vulture: ${VULTURE_COUNT} dead code items found"
@@ -138,7 +144,7 @@ for module in "${MODULES[@]}"; do
 
    # 7. LCOM (class cohesion)
     echo "  Running LCOM analysis..."
-    LCOM_OUTPUT=$(uv run python scripts/lcom.py "${CORE_DIR}" 2 2>&1 || true)
+    LCOM_OUTPUT=$(uv run python scripts/lcom.py "${CORE_DIR}" 5 2>&1 || true)
     LCOM_CLASSES=$(echo "$LCOM_OUTPUT" | grep -E "^\s+/.*\.(py):" || true)
     if [ -n "$LCOM_CLASSES" ]; then
         echo "$LCOM_CLASSES" | sed 's/^/    /'

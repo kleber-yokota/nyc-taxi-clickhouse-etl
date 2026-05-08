@@ -16,6 +16,7 @@ def put_object(
     key: str,
     body: bytes | BinaryIO,
     content_type: str,
+    checksum: str | None = None,
 ) -> dict:
     """Upload a single object to S3.
 
@@ -25,6 +26,7 @@ def put_object(
         key: S3 object key.
         body: File content as bytes or file-like object.
         content_type: MIME type of the content.
+        checksum: SHA-256 hex digest to store as S3 metadata.
 
     Returns:
         Response dict from S3 with ETag metadata.
@@ -32,10 +34,12 @@ def put_object(
     Raises:
         S3ClientError: On S3 API errors.
     """
+    metadata = {"checksum": checksum} if checksum else None
     try:
-        return client.put_object(
-            Bucket=bucket, Key=key, Body=body, ContentType=content_type,
-        )
+        kwargs = dict(Bucket=bucket, Key=key, Body=body, ContentType=content_type)
+        if metadata:
+            kwargs["Metadata"] = metadata
+        return client.put_object(**kwargs)
     except ClientError as e:
         raise S3ClientError(f"PutObject failed for {key}: {e}")
 
@@ -46,6 +50,7 @@ def upload_fileobj(
     key: str,
     fileobj: BinaryIO,
     config: object,
+    checksum: str | None = None,
 ) -> None:
     """Upload a file object to S3 using multipart transfer if needed.
 
@@ -55,12 +60,19 @@ def upload_fileobj(
         key: S3 object key.
         fileobj: File-like object to upload.
         config: boto3 TransferConfig for multipart settings.
+        checksum: SHA-256 hex digest to store as S3 metadata.
 
     Raises:
         S3ClientError: On S3 API errors.
     """
+    extra_args: dict[str, str] = {}
+    if checksum:
+        extra_args["Metadata"] = {"checksum": checksum}
     try:
-        client.upload_fileobj(Fileobj=fileobj, Bucket=bucket, Key=key, Config=config)
+        kwargs = dict(Fileobj=fileobj, Bucket=bucket, Key=key, Config=config)
+        if extra_args:
+            kwargs["ExtraArgs"] = extra_args
+        client.upload_fileobj(**kwargs)
     except ClientError as e:
         raise S3ClientError(f"UploadFileObj failed for {key}: {e}")
 

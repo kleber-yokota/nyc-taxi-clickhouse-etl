@@ -35,8 +35,8 @@ class TestUploadFresh:
 
         result = upload(sample_files, client, state)
 
-        assert len(result.uploaded_files) == 3
-        relative_paths = {p for p in result.uploaded_files}
+        assert len(result.entries) == 3
+        relative_paths = {e.rel_path for e in result.entries}
         assert "yellow/yellow_tripdata_2024-01.parquet" in relative_paths
         assert "yellow/yellow_tripdata_2024-02.parquet" in relative_paths
         assert "green/green_tripdata_2024-01.parquet" in relative_paths
@@ -50,7 +50,7 @@ class TestUploadFresh:
 
         assert result.uploaded == 0
         assert result.skipped == 3
-        assert result.uploaded_files == []
+        assert result.entries == []
 
     def test_upload_keys_use_prefix(self, sample_files: Path):
         client = FakeS3Client(bucket="b", prefix="data")
@@ -226,14 +226,14 @@ class TestUploadErrors:
         assert any("Data directory does not exist" in record.message for record in caplog.records)
 
     def test_upload_uploaded_files_mutant_killing(self, sample_files: Path):
-        """Kills mutants that remove uploaded_files assignment or the field."""
+        """Kills mutants that remove entries assignment or the field."""
         client = FakeS3Client(bucket="b", prefix="data")
         state = UploadState(sample_files / ".upload_state.json")
 
         result = upload(sample_files, client, state)
 
-        assert hasattr(result, "uploaded_files")
-        assert isinstance(result.uploaded_files, list)
-        assert len(result.uploaded_files) == result.uploaded
-        assert all(isinstance(p, str) for p in result.uploaded_files)
-        assert all("/" in p for p in result.uploaded_files)
+        assert hasattr(result, "entries")
+        assert isinstance(result.entries, list)
+        assert len(result.entries) == result.uploaded
+        assert all(hasattr(e, "rel_path") for e in result.entries)
+        assert all("/" in e.rel_path for e in result.entries)

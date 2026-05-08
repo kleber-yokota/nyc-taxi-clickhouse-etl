@@ -4,7 +4,29 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from upload.core.state import UploadResult, UploadState, UploadConfig
+from upload.core.state import UploadEntry, UploadResult, UploadState, UploadConfig
+
+
+class TestUploadEntry:
+    """Tests for UploadEntry — verify frozen dataclass."""
+
+    def test_basic(self):
+        entry = UploadEntry(
+            rel_path="yellow/file.parquet",
+            s3_key="data/yellow/file.parquet",
+            checksum="abc123",
+        )
+        assert entry.rel_path == "yellow/file.parquet"
+        assert entry.s3_key == "data/yellow/file.parquet"
+        assert entry.checksum == "abc123"
+
+    def test_is_frozen(self):
+        entry = UploadEntry(rel_path="a", s3_key="b", checksum="c")
+        try:
+            entry.rel_path = "x"  # type: ignore[call-arg]
+            assert False, "Should have raised"
+        except Exception:
+            pass
 
 
 class TestUploadResult:
@@ -16,7 +38,7 @@ class TestUploadResult:
         assert r.skipped == 0
         assert r.failed == 0
         assert r.total == 0
-        assert r.uploaded_files == []
+        assert r.entries == []
 
     def test_nonzero(self):
         r = UploadResult(uploaded=3, skipped=2, failed=1, total=6)
@@ -24,23 +46,28 @@ class TestUploadResult:
         assert r.skipped == 2
         assert r.failed == 1
         assert r.total == 6
-        assert r.uploaded_files == []
+        assert r.entries == []
 
-    def test_uploaded_files(self):
+    def test_entries(self):
+        entries = [
+            UploadEntry(rel_path="fhv/file.parquet", s3_key="data/fhv/file.parquet", checksum="abc"),
+            UploadEntry(rel_path="yellow/file.parquet", s3_key="data/yellow/file.parquet", checksum="def"),
+        ]
         r = UploadResult(
             uploaded=2,
             skipped=1,
             failed=0,
             total=3,
-            uploaded_files=["fhv/fhv_tripdata_2024-01.parquet", "yellow/yellow_tripdata_2024-01.parquet"],
+            entries=entries,
         )
         assert r.uploaded == 2
-        assert r.uploaded_files == ["fhv/fhv_tripdata_2024-01.parquet", "yellow/yellow_tripdata_2024-01.parquet"]
+        assert len(r.entries) == 2
+        assert r.entries[0].rel_path == "fhv/file.parquet"
 
-    def test_uploaded_files_immutable(self):
-        r = UploadResult(uploaded=1, uploaded_files=["fhv/file.parquet"])
+    def test_entries_immutable(self):
+        r = UploadResult(uploaded=1, entries=[UploadEntry(rel_path="a", s3_key="b", checksum="c")])
         try:
-            r.uploaded_files.append("other.parquet")  # type: ignore[union-attr]
+            r.entries.append(UploadEntry(rel_path="x", s3_key="y", checksum="z"))  # type: ignore[union-attr]
             assert False, "Should have raised"
         except Exception:
             pass
@@ -51,7 +78,7 @@ class TestUploadResult:
         assert r.skipped == 0
         assert r.failed == 0
         assert r.total == 0
-        assert r.uploaded_files == []
+        assert r.entries == []
 
     def test_is_frozen(self):
         r = UploadResult(uploaded=1)

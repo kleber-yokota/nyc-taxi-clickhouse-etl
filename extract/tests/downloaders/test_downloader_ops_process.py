@@ -59,4 +59,4 @@ class TestProcessEntryDownloaded:
         ) as mock_download:
             process_entry(entry, tmp_path, state, known_missing, 0, 0, 0)
 
-        mock_download.assert_called_once_with(entry, tmp_path, state, known_missing)
+        mock_download.assert_called_once_with(entry, tmp_path, state, known_missing, None)

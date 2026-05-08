@@ -35,7 +35,7 @@ jobs:
               BASE="origin/main"
             fi
             FILES=$(git diff --name-only "$BASE"..HEAD \
-              | grep -E '^(extract|push)/.*\.py$' \
+              | grep -E '^(extract|upload|etl)/.*\.py$' \
               | grep -v '/tests/' \
               | tr '\n' ' ')
             if [ -z "$FILES" ]; then
@@ -88,7 +88,7 @@ jobs:
               BASE="origin/main"
             fi
             FILES=$(git diff --name-only "$BASE"..HEAD \
-              | grep -E '^(extract|push)/.*\.py$' \
+              | grep -E '^(extract|upload|etl)/.*\.py$' \
               | grep -v '/tests/' \
               | tr '\n' ' ')
             echo "files=$FILES" >> $GITHUB_OUTPUT
@@ -134,7 +134,7 @@ jobs:
               BASE="origin/main"
             fi
             FILES=$(git diff --name-only "$BASE"..HEAD \
-              | grep -E '^(extract|push)/.*\.py$' \
+              | grep -E '^(extract|upload|etl)/.*\.py$' \
               | grep -v '/tests/' \
               | tr '\n' ' ')
             if [ -z "$FILES" ]; then
@@ -177,7 +177,7 @@ jobs:
               BASE="origin/main"
             fi
             FILES=$(git diff --name-only "$BASE"..HEAD \
-              | grep -E '^(extract|push)/.*\.py$' \
+              | grep -E '^(extract|upload|etl)/.*\.py$' \
               | grep -v '/tests/' \
               | tr '\n' ' ')
             echo "files=$FILES" >> $GITHUB_OUTPUT
@@ -214,7 +214,7 @@ jobs:
               BASE="origin/main"
             fi
             FILES=$(git diff --name-only "$BASE"..HEAD \
-              | grep -E '^(extract|push)/.*\.py$' \
+              | grep -E '^(extract|upload|etl)/.*\.py$' \
               | grep -v '/tests/' \
               | tr '\n' ' ')
             echo "files=$FILES" >> $GITHUB_OUTPUT
@@ -237,4 +237,4 @@ jobs:
 
       - name: Run full e2e tests (main push)
         if: steps.changed.outputs.files == 'FULL'
-        run: uv run pytest -v extract/tests/ push/tests/ -k "e2e"
+        run: uv run pytest -v extract/tests/ upload/tests/ etl/tests/ -k "e2e"

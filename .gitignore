@@ -45,6 +45,7 @@ Thumbs.db
 */REVIEW_EXCEPTION.md
 */OVERVIEW.md
 */DETAILS.md
+**/TODO.md
 
 # Environment
 .env
@@ -52,7 +53,4 @@ Thumbs.db
 data
 .opencode
 .hypothesis
-
-# Runtime state
-.upload_state.json
 .contextrules

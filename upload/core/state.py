@@ -10,13 +10,21 @@ PARQUET_EXTENSION = ".parquet"
 
 
 @dataclass(frozen=True)
+class UploadEntry:
+    """Metadata for a single uploaded file."""
+    rel_path: str
+    s3_key: str
+    checksum: str
+
+
+@dataclass(frozen=True)
 class UploadResult:
     """Result of an upload operation."""
     uploaded: int = 0
     skipped: int = 0
     failed: int = 0
     total: int = 0
-    uploaded_files: list[str] = field(default_factory=list)
+    entries: list[UploadEntry] = field(default_factory=list)
 
 
 @dataclass(frozen=True)
@@ -55,3 +63,7 @@ class UploadState:
 
     def record_upload(self, local_path: str, s3_key: str, checksum: str) -> None:
         self._data[local_path] = {"s3_key": s3_key, "checksum": checksum}
+
+    def get_entries(self) -> dict:
+        """Return raw upload state entries {local_path: {s3_key, checksum}}."""
+        return dict(self._data)

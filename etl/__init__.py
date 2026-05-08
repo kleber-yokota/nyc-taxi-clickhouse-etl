@@ -5,9 +5,8 @@ from etl.checkpoint_builder import CheckpointBuilder
 from etl.checksum import ChecksumProvider
 from etl.checksum_impl import UploadChecksum
 from etl.config import ETLConfig
-from etl.manifest_updater import ManifestUpdater
+from etl.manifest import Manifest
 from etl.orchestrator import Orchestrator
-from etl.retry import RetryPolicy
 from etl.state import PipelineState, PipelineMetrics, StageMetrics, PipelineStage
 
 __all__ = [
@@ -16,13 +15,12 @@ __all__ = [
     "ChecksumProvider",
     "UploadChecksum",
     "ETLConfig",
-    "ManifestUpdater",
+    "Manifest",
     "Orchestrator",
     "PipelineState",
     "PipelineMetrics",
     "StageMetrics",
     "PipelineStage",
-    "RetryPolicy",
     "load_checkpoint",
     "save_checkpoint",
 ]

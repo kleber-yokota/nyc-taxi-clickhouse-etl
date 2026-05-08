@@ -21,6 +21,7 @@ class FakeS3Client:
         self.bucket = bucket
         self.prefix = prefix.rstrip("/")
         self.objects: dict[str, bytes] = {}
+        self.metadata: dict[str, dict] = {}
         self.upload_count = 0
 
     def build_key(self, relative_path: str) -> str:
@@ -64,6 +65,8 @@ class FakeS3Client:
         """
         self.upload_count += 1
         self.objects[key] = fileobj.read()
+        if "checksum" in kwargs and kwargs["checksum"]:
+            self.metadata[key] = {"checksum": kwargs["checksum"]}
         return {"ETag": '"fake"'}
 
     def head_object(self, key: str) -> dict | None:
@@ -76,7 +79,13 @@ class FakeS3Client:
             Object metadata dict if exists, None otherwise.
         """
         if key in self.objects:
-            return {"ContentLength": len(self.objects[key]), "ETag": '"fake"'}
+            result: dict[str, object] = {
+                "ContentLength": len(self.objects[key]),
+                "ETag": '"fake"',
+            }
+            if key in self.metadata:
+                result["Metadata"] = self.metadata[key]
+            return result
         return None
 
     def list_objects(self, prefix: str = "") -> list[str]:
@@ -100,3 +109,12 @@ class FakeS3Client:
 
     def create_bucket(self) -> None:
         """No-op for fake."""
+
+    def set_metadata(self, key: str, metadata: dict) -> None:
+        """Set metadata for a key (for testing recovery with checksums).
+
+        Args:
+            key: S3 object key.
+            metadata: Metadata dict to store.
+        """
+        self.metadata[key] = metadata

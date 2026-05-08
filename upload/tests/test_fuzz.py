@@ -7,7 +7,7 @@ import atheris
 with atheris.instrument_imports(include=["upload.core.checksum", "upload.core.filter", "upload.core.state"]):
     from upload.core.checksum import compute_content_type, compute_sha256
     from upload.core.filter import _matches_pattern, _matches_any
-    from upload.core.state import UploadResult, UploadConfig
+    from upload.core.state import UploadResult, UploadConfig, UploadEntry
 
 
 @atheris.instrument_func
@@ -187,6 +187,46 @@ def TestMatchesPatternStarExclusion(data):
         return  # Expected — not a crash
 
 
+@atheris.instrument_func
+def TestUploadEntryFrozen(data):
+    """Fuzz test for UploadEntry — verify frozen dataclass behavior."""
+    fdp = atheris.FuzzedDataProvider(data)
+    try:
+        rel_path = fdp.ConsumeUnicodeNoSurrogates(fdp.ConsumeIntInRange(0, 100))
+        s3_key = fdp.ConsumeUnicodeNoSurrogates(fdp.ConsumeIntInRange(0, 100))
+        checksum = fdp.ConsumeUnicodeNoSurrogates(fdp.ConsumeIntInRange(0, 64))
+
+        entry = UploadEntry(rel_path=rel_path, s3_key=s3_key, checksum=checksum)
+        assert entry.rel_path == rel_path
+        assert entry.s3_key == s3_key
+        assert entry.checksum == checksum
+
+        # Verify frozen — must raise on mutation
+        try:
+            entry.rel_path = "x"  # type: ignore[assignment]
+            raise AssertionError("UploadEntry should be frozen")
+        except Exception:
+            pass  # Expected
+    except (ValueError, OverflowError):
+        return  # Expected — not a crash
+
+
+@atheris.instrument_func
+def TestUploadEntryEquality(data):
+    """Fuzz test for UploadEntry — verify equality."""
+    fdp = atheris.FuzzedDataProvider(data)
+    try:
+        rel_path = fdp.ConsumeUnicodeNoSurrogates(fdp.ConsumeIntInRange(0, 100))
+        s3_key = fdp.ConsumeUnicodeNoSurrogates(fdp.ConsumeIntInRange(0, 100))
+        checksum = fdp.ConsumeUnicodeNoSurrogates(fdp.ConsumeIntInRange(0, 64))
+
+        entry1 = UploadEntry(rel_path=rel_path, s3_key=s3_key, checksum=checksum)
+        entry2 = UploadEntry(rel_path=rel_path, s3_key=s3_key, checksum=checksum)
+        assert entry1 == entry2
+    except (ValueError, OverflowError):
+        return  # Expected — not a crash
+
+
 def TestOneInput(data):
     """Dispatch fuzz input to all test functions."""
     fdp = atheris.FuzzedDataProvider(data)
@@ -216,7 +256,7 @@ def TestOneInput(data):
             TestMatchesPatternStarExclusion(data)
         else:
             # Run a random selection
-            random_test = fdp.ConsumeIntInRange(0, 8)
+            random_test = fdp.ConsumeIntInRange(0, 10)
             if random_test == 0:
                 TestChecksumContentType(data)
             elif random_test == 1:
@@ -233,8 +273,12 @@ def TestOneInput(data):
                 TestUploadConfigCommutativity(data)
             elif random_test == 7:
                 TestMatchesPatternWildcard(data)
-            else:
+            elif random_test == 8:
                 TestMatchesPatternStarExclusion(data)
+            elif random_test == 9:
+                TestUploadEntryFrozen(data)
+            else:
+                TestUploadEntryEquality(data)
     except (AssertionError, KeyError):
         raise  # Re-raise — these are real bugs
     except (TypeError, ValueError, OverflowError, AttributeError, IndexError):

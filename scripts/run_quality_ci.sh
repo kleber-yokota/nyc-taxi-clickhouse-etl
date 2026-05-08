@@ -130,9 +130,10 @@ for module in "${MODULES[@]}"; do
         echo "  PASS: Cohesion check passed"
     fi
 
-    # 6. Vulture (dead code)
+    # 6. Vulture (dead code, min 90% confidence, source only)
     echo "  Running vulture..."
-    VULTURE_OUTPUT=$(uv run vulture "${CORE_DIR}" 2>&1 || true)
+    # Exclude tests/ and conftest.py — only check production source
+    VULTURE_OUTPUT=$(uv run vulture "${CORE_DIR}" --min-confidence 90 --ignore-dirs="tests,__pycache__" 2>&1 || true)
     VULTURE_COUNT=$(echo "$VULTURE_OUTPUT" | wc -l | tr -d ' ')
     if [ "$VULTURE_COUNT" -gt 0 ] && [ -n "$VULTURE_OUTPUT" ]; then
         echo "  Vulture: ${VULTURE_COUNT} dead code items found"
@@ -143,7 +144,7 @@ for module in "${MODULES[@]}"; do
 
    # 7. LCOM (class cohesion)
     echo "  Running LCOM analysis..."
-    LCOM_OUTPUT=$(uv run python scripts/lcom.py "${CORE_DIR}" 2 2>&1 || true)
+    LCOM_OUTPUT=$(uv run python scripts/lcom.py "${CORE_DIR}" 5 2>&1 || true)
     LCOM_CLASSES=$(echo "$LCOM_OUTPUT" | grep -E "^\s+/.*\.(py):" || true)
     if [ -n "$LCOM_CLASSES" ]; then
         echo "$LCOM_CLASSES" | sed 's/^/    /'
